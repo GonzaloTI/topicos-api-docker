@@ -48,7 +48,7 @@ fs = admin_client.create_topics(topic_list)
 for topic, f in fs.items():
     try:
         f.result()  # Bloquea hasta que se cree el topic
-        print(f"✅ Topic '{topic}' creado correctamente")
+        print(f" Topic '{topic}' creado correctamente")
     except Exception as e:
         # Si ya existe, solo lo ignoramos
         if isinstance(e, KafkaError) and e.code() == KafkaError.TOPIC_ALREADY_EXISTS:
@@ -111,7 +111,7 @@ def worker():
         if msg is None:
             continue
         if msg.error():
-            print("⚠️ Error:", msg.error())
+            print(" Error:", msg.error())
             continue
         tarea = json.loads(msg.value().decode('utf-8'))
         print(f" Ejecutando tarea: {tarea}")
