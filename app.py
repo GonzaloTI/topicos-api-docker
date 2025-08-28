@@ -1,11 +1,17 @@
+import json
 from flask import Flask, request, jsonify
 from pony.orm import Database, Required, Optional, PrimaryKey, db_session, Set , commit, rollback
 from pony.orm.core import TransactionIntegrityError, ObjectNotFound
 import datetime
 from functools import wraps
+import threading
 import jwt
 from ponyorm import DatabaseORM
 from pila import PilaManager
+from confluent_kafka import Producer, Consumer
+from confluent_kafka.admin import AdminClient, NewTopic
+
+
 app = Flask(__name__)
 
 # =========================
@@ -21,6 +27,30 @@ dborm = DatabaseORM(
 SECRET_KEY = "mi_clave_secreta"
 
 pila_manager = PilaManager(dborm.db)
+
+
+KAFKA_SERVERS = '3.143.108.22:9092'
+TOPIC = 'tareas'
+
+# --- Productor ---
+producer_conf = {'bootstrap.servers': KAFKA_SERVERS}
+producer = Producer(producer_conf)
+admin_conf = {'bootstrap.servers': KAFKA_SERVERS}
+admin_client = AdminClient(admin_conf)
+
+
+
+topic_list = [NewTopic(TOPIC, num_partitions=1, replication_factor=1)]
+fs = admin_client.create_topics(topic_list)
+
+# Esperar resultados y manejar errores
+for topic, f in fs.items():
+    try:
+        f.result()  # Bloquea hasta que se cree el topic
+        print(f"✅ Topic '{topic}' creado correctamente")
+    except Exception as e:
+        print(f"⚠️ Topic '{topic}' podría ya existir: {e}")
+
 
 
 def token_required(f):
@@ -45,6 +75,42 @@ def token_required(f):
 
         return f(*args, **kwargs)
     return decorated
+
+
+
+def publicar_tarea(instruccion, modelo, datos):
+    """Guardar en BD y publicar ."""
+    tarea = pila_manager.guardar_tarea(instruccion, modelo, datos)
+    producer.produce(TOPIC, key=str(tarea.id), value=json.dumps({
+        "id": tarea.id,
+        "instruccion": instruccion,
+        "modelo": modelo,
+        "datos": datos
+    }))
+    producer.flush()
+    return tarea
+
+# --- Consumidor ---
+consumer_conf = {
+    'bootstrap.servers': KAFKA_SERVERS,
+    'group.id': 'worker-grupo',
+    'auto.offset.reset': 'earliest'
+}
+consumer = Consumer(consumer_conf)
+consumer.subscribe([TOPIC])
+
+
+def worker():
+    print("🚀 Worker escuchando tareas...")
+    while True:
+        msg = consumer.poll(1.0)
+        if msg is None:
+            continue
+        if msg.error():
+            print("⚠️ Error:", msg.error())
+            continue
+        tarea = json.loads(msg.value().decode('utf-8'))
+        print(f" Ejecutando tarea: {tarea}")
 
 # =========================
 # Rutas de la API
@@ -233,8 +299,10 @@ def agregar_carrera():
 
         # Guardar la tarea en la pila
         tarea = pila_manager
-        tarea_pila =tarea.guardar_tarea(instruccion="POST", modelo="Carrera", datos=datos_serializados)
-        
+        #tarea_pila =tarea.guardar_tarea(instruccion="POST", modelo="Carrera", datos=datos_serializados)
+        tarea_pila = publicar_tarea("POST", "Carrera", datos_serializados)
+
+    
         #carrera = Carrera(
          #   nombre=data["nombre"],
           #  codigo=data["codigo"],
@@ -253,7 +321,10 @@ def agregar_carrera():
 @db_session
 def listar_carreras():
     tarea = pila_manager
-    tarea.guardar_tarea(instruccion="GET", modelo="Carrera", datos='')
+    #tarea.guardar_tarea(instruccion="GET", modelo="Carrera", datos='')
+    
+    tarea_pila = publicar_tarea("POST", "Carrera", '')
+    
     Carrera = dborm.db.Carrera
     carreras = [{
         "id": c.id,
@@ -1014,4 +1085,7 @@ def obtener_materias_estudiante():
 
 
 if __name__ == "__main__":
+        # Arrancamos el worker en un hilo
+    threading.Thread(target=worker, daemon=True).start()
+
     app.run(host="0.0.0.0", port=8000)

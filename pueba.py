@@ -1,18 +1,28 @@
-from kafka import KafkaProducer, KafkaConsumer
+from confluent_kafka import Producer, Consumer
 
-# Productor
-producer = KafkaProducer(bootstrap_servers='3.143.108.22:9092')
-producer.send('test-topic', b'Hola desde mi PC!')
+# --- Productor ---
+conf = {'bootstrap.servers': '3.143.108.22:9092'}
+producer = Producer(conf)
+
+producer.produce('test-topic', key='key1', value='Hola desde Windows con confluent-kafka!')
 producer.flush()
+print("✅ Mensaje enviado al topic test-topic")
 
-# Consumidor
-consumer = KafkaConsumer(
-    'test-topic',
-    bootstrap_servers='3.143.108.22:9092',
-    auto_offset_reset='earliest',
-    enable_auto_commit=True,
-    group_id='mi-grupo'
-)
+# --- Consumidor ---
+consumer_conf = {
+    'bootstrap.servers': '3.143.108.22:9092',
+    'group.id': 'mi-grupo',
+    'auto.offset.reset': 'earliest'
+}
+consumer = Consumer(consumer_conf)
+consumer.subscribe(['test-topic'])
 
-for message in consumer:
-    print(f"Mensaje recibido: {message.value.decode('utf-8')}")
+print("📩 Escuchando mensajes...")
+while True:
+    msg = consumer.poll(1.0)  # espera hasta 1 segundo
+    if msg is None:
+        continue
+    if msg.error():
+        print("⚠️ Error:", msg.error())
+        continue
+    print(f"Mensaje recibido: {msg.value().decode('utf-8')}")
