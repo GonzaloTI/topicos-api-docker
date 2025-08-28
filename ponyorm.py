@@ -29,11 +29,11 @@ class DatabaseORM:
             planes = Set("PlanDeEstudio")
             
         class Pila(db.Entity):
-            id = PrimaryKey(str, default=lambda: str(uuid.uuid4()))  # Generación automática de ID único
+            id = PrimaryKey(str, default=lambda: str(uuid.uuid4()))  # Generación de ID unico
             instruccion = Required(str)  # Tipo de instrucción (GET, POST, UPDATE)
-            modelo = Required(str)  # Nombre del modelo relacionado
-            estado = Required(str, default="pendiente")  # Estado de la tarea (pendiente, procesado, etc.)
-            datos = Required(str)  # El modelo serializado en formato JSON
+            modelo = Required(str)  
+            estado = Required(str, default="pendiente") 
+            datos = Required(str)  
             
         class PlanDeEstudio(db.Entity):
             id = PrimaryKey(int, auto=True)
@@ -110,8 +110,8 @@ class DatabaseORM:
        
         class Modulo(db.Entity):
             id = PrimaryKey(int, auto=True)
-            numero = Required(str)          # ej: "112"
-            nombre = Optional(str)          # ej: "Edificio Principal"
+            numero = Required(str)          
+            nombre = Optional(str)         
             aulas = Set("Aula")             # contiene varias aulas
 
         class Aula(db.Entity):

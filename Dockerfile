@@ -22,6 +22,8 @@ COPY app.py .
 
 COPY ponyorm.py .
 
+COPY pila.py .
+
 EXPOSE 8000
 
 CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:app"]

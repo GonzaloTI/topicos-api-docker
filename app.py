@@ -8,6 +8,7 @@ import threading
 import jwt
 from ponyorm import DatabaseORM
 from pila import PilaManager
+from confluent_kafka import KafkaError
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 
@@ -43,15 +44,18 @@ admin_client = AdminClient(admin_conf)
 topic_list = [NewTopic(TOPIC, num_partitions=1, replication_factor=1)]
 fs = admin_client.create_topics(topic_list)
 
-# Esperar resultados y manejar errores
+
 for topic, f in fs.items():
     try:
         f.result()  # Bloquea hasta que se cree el topic
         print(f"✅ Topic '{topic}' creado correctamente")
     except Exception as e:
-        print(f"⚠️ Topic '{topic}' podría ya existir: {e}")
-
-
+        # Si ya existe, solo lo ignoramos
+        if isinstance(e, KafkaError) and e.code() == KafkaError.TOPIC_ALREADY_EXISTS:
+            print(f"ℹ Topic '{topic}' ya existe, se usará el existente")
+        else:
+            # Para otros errores, mostramos advertencia
+            print(f" Error creando topic '{topic}': {e}")
 
 def token_required(f):
     @wraps(f)
@@ -101,7 +105,7 @@ consumer.subscribe([TOPIC])
 
 
 def worker():
-    print("🚀 Worker escuchando tareas...")
+    print(" Worker escuchando tareas...")
     while True:
         msg = consumer.poll(1.0)
         if msg is None:
