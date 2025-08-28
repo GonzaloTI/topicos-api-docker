@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from pony.orm import Database, Required, Optional, PrimaryKey, db_session, Set , commit, rollback
 from pony.orm.core import TransactionIntegrityError, ObjectNotFound
 import datetime
+from functools import wraps
+import jwt
 from ponyorm import DatabaseORM
 app = Flask(__name__)
 
@@ -15,6 +17,30 @@ dborm = DatabaseORM(
     database="topicos_ytxp"
 )
 
+SECRET_KEY = "mi_clave_secreta"
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Token faltante"}), 401
+        
+        # Se espera: "Bearer <token>"
+        try:
+            token = auth_header.split(" ")[1]
+        except IndexError:
+            return jsonify({"error": "Formato de token inválido"}), 401
+
+        try:
+            data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token expirado, por favor haga login nuevamente"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Token inválido"}), 401
+
+        return f(*args, **kwargs)
+    return decorated
 
 # =========================
 # Rutas de la API
@@ -156,10 +182,39 @@ def initdb():
         rollback()
         return jsonify({"error": "Error inesperado al inicializar la BD", "detalle": str(e)}), 500
 
+# Rutas Login
+# =========================
 
+@app.route("/login", methods=["POST"])
+@db_session
+def login():
+    data = request.json
+    registro = data.get("usuario")
+    ci = data.get("password")
+
+    Estudiante = dborm.db.Estudiante
+
+    estudiante = Estudiante.get(registro=registro, ci=ci)
+    if estudiante:
+        token = jwt.encode(
+            {
+                "user": estudiante.registro,
+                "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2)
+            },
+            SECRET_KEY,
+            algorithm="HS256"
+        )
+        return jsonify({
+            "token": token,
+            "usuario": estudiante.nombre,
+            "registro": estudiante.registro
+        })
+    
+    return jsonify({"error": "Credenciales incorrectas"}), 401
 # Rutas Carrera
 # =========================
 @app.route("/carreras", methods=["POST"])
+@token_required
 @db_session
 def agregar_carrera():
     Carrera = dborm.db.Carrera
@@ -177,6 +232,7 @@ def agregar_carrera():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/carreras", methods=["GET"])
+@token_required
 @db_session
 def listar_carreras():
     Carrera = dborm.db.Carrera
@@ -194,6 +250,7 @@ def listar_carreras():
 # Rutas PlanDeEstudio
 # =========================
 @app.route("/planes", methods=["POST"])
+@token_required
 @db_session
 def agregar_plan():
     PlanDeEstudio = dborm.db.PlanDeEstudio
@@ -215,6 +272,7 @@ def agregar_plan():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/planes", methods=["GET"])
+@token_required
 @db_session
 def listar_planes():
     PlanDeEstudio = dborm.db.PlanDeEstudio
@@ -233,6 +291,7 @@ def listar_planes():
 # Rutas Materia (uno por uno)
 # =========================
 @app.route("/materias", methods=["POST"])
+@token_required
 @db_session
 def agregar_materia():
     Materia = dborm.db.Materia
@@ -256,6 +315,7 @@ def agregar_materia():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/materias", methods=["GET"])
+@token_required
 @db_session
 def listar_materias():
     Materia = dborm.db.Materia
@@ -271,6 +331,7 @@ def listar_materias():
 
 # =========================
 @app.route("/prerrequisitos", methods=["POST"])
+@token_required
 @db_session
 def agregar_prerrequisito():
     Materia = dborm.db.Materia
@@ -287,6 +348,7 @@ def agregar_prerrequisito():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/prerrequisitos", methods=["GET"])
+@token_required
 @db_session
 def listar_prerrequisitos():
     Prerequisito = dborm.db.Prerequisito
@@ -299,6 +361,7 @@ def listar_prerrequisitos():
 
 # ---------- NIVELES ----------
 @app.route("/niveles", methods=["POST"])
+@token_required
 @db_session
 def agregar_nivel():
     Nivel = dborm.db.Nivel
@@ -312,6 +375,7 @@ def agregar_nivel():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/niveles", methods=["GET"])
+@token_required
 @db_session
 def listar_niveles():
     Nivel = dborm.db.Nivel
@@ -322,6 +386,7 @@ def listar_niveles():
 # Rutas Docente
 # =========================
 @app.route("/docentes", methods=["POST"])
+@token_required
 @db_session
 def agregar_docente():
     Docente = dborm.db.Docente
@@ -341,6 +406,7 @@ def agregar_docente():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/docentes", methods=["GET"])
+@token_required
 @db_session
 def listar_docentes():
     Docente = dborm.db.Docente
@@ -356,6 +422,7 @@ def listar_docentes():
 
 # ---------- ESTUDIANTES ----------
 @app.route("/estudiantes", methods=["POST"])
+@token_required
 @db_session
 def agregar_estudiante():
     Estudiante = dborm.db.Estudiante
@@ -376,6 +443,7 @@ def agregar_estudiante():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/estudiantes", methods=["GET"])
+@token_required
 @db_session
 def listar_estudiantes():
     Estudiante = dborm.db.Estudiante
@@ -388,6 +456,7 @@ def listar_estudiantes():
 # =========================
 
 @app.route("/modulos", methods=["GET"])
+@token_required
 @db_session
 def listar_modulos():
     Modulo = dborm.db.Modulo
@@ -404,6 +473,7 @@ def listar_modulos():
 
 
 @app.route("/modulos", methods=["POST"])
+@token_required
 @db_session
 def agregar_modulo():
     Modulo = dborm.db.Modulo
@@ -430,6 +500,7 @@ def agregar_modulo():
 # =========================
 
 @app.route("/aulas", methods=["GET"])
+@token_required
 @db_session
 def listar_aulas():
     Aula = dborm.db.Aula
