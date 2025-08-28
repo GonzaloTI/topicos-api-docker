@@ -1,9 +1,13 @@
+import json
+import uuid
 from pony.orm import Database, Required, Optional, PrimaryKey, Set
 import datetime
 
+db = Database()
+
 class DatabaseORM:
     def __init__(self, user, password, host, database):
-        self.db = Database()
+        self.db = db
         self.db.bind(
             provider="postgres",
             user=user,
@@ -23,7 +27,14 @@ class DatabaseORM:
             codigo = Required(str, unique=True)
             otros = Optional(str)
             planes = Set("PlanDeEstudio")
-
+            
+        class Pila(db.Entity):
+            id = PrimaryKey(str, default=lambda: str(uuid.uuid4()))  # Generación automática de ID único
+            instruccion = Required(str)  # Tipo de instrucción (GET, POST, UPDATE)
+            modelo = Required(str)  # Nombre del modelo relacionado
+            estado = Required(str, default="pendiente")  # Estado de la tarea (pendiente, procesado, etc.)
+            datos = Required(str)  # El modelo serializado en formato JSON
+            
         class PlanDeEstudio(db.Entity):
             id = PrimaryKey(int, auto=True)
             nombre = Required(str)

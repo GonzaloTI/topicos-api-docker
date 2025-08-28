@@ -5,6 +5,7 @@ import datetime
 from functools import wraps
 import jwt
 from ponyorm import DatabaseORM
+from pila import PilaManager
 app = Flask(__name__)
 
 # =========================
@@ -18,6 +19,9 @@ dborm = DatabaseORM(
 )
 
 SECRET_KEY = "mi_clave_secreta"
+
+pila_manager = PilaManager(dborm.db)
+
 
 def token_required(f):
     @wraps(f)
@@ -219,14 +223,27 @@ def login():
 def agregar_carrera():
     Carrera = dborm.db.Carrera
     data = request.json
+    
     try:
-        carrera = Carrera(
-            nombre=data["nombre"],
-            codigo=data["codigo"],
-            otros=data.get("otros", "")
-        )
-        commit()
-        return jsonify({"msg": "Carrera agregada con éxito", "id": carrera.id}), 201
+        datos_serializados = {
+            "nombre": data["nombre"],
+            "codigo": data["codigo"],
+            "otros": data.get("otros", "")
+        }
+
+        # Guardar la tarea en la pila
+        tarea = pila_manager
+        tarea_pila =tarea.guardar_tarea(instruccion="POST", modelo="Carrera", datos=datos_serializados)
+        
+        #carrera = Carrera(
+         #   nombre=data["nombre"],
+          #  codigo=data["codigo"],
+           # otros=data.get("otros", "")
+        #)
+        #commit()
+        #return jsonify({"msg": "Carrera agregada con éxito", "id": carrera.id}), 201
+        return jsonify({"msg": "Carrera agregada con éxito", "id": tarea_pila.id}), 201
+    
     except Exception as e:
         rollback()
         return jsonify({"error": str(e)}), 400
@@ -235,6 +252,8 @@ def agregar_carrera():
 @token_required
 @db_session
 def listar_carreras():
+    tarea = pila_manager
+    tarea.guardar_tarea(instruccion="GET", modelo="Carrera", datos='')
     Carrera = dborm.db.Carrera
     carreras = [{
         "id": c.id,
