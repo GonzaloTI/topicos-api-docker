@@ -8,6 +8,7 @@ import threading
 import jwt
 from ponyorm import DatabaseORM
 from pila import PilaManager
+from pilaresponse import PilaResponseCache
 from confluent_kafka import KafkaError
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
@@ -30,10 +31,12 @@ SECRET_KEY = "mi_clave_secreta"
 
 pila_manager = PilaManager(dborm.db)
 
+pila_response_manage = PilaResponseCache()
 
-KAFKA_SERVERS = '3.143.108.22:9092'
+
+KAFKA_SERVERS =   '3.142.76.191:9092'    #'3.143.108.22:9092'
 TOPIC = 'tareas'
-'''
+
 # --- Productor ---
 producer_conf = {'bootstrap.servers': KAFKA_SERVERS}
 producer = Producer(producer_conf)
@@ -57,7 +60,7 @@ for topic, f in fs.items():
         else:
             # Para otros errores, mostramos advertencia
             print(f" Error creando topic '{topic}': {e}")
-'''
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -82,7 +85,6 @@ def token_required(f):
     return decorated
 
 
-'''
 def publicar_tarea(instruccion, modelo, datos):
     """Guardar en BD y publicar ."""
     tarea = pila_manager.guardar_tarea(instruccion, modelo, datos)
@@ -105,7 +107,7 @@ consumer = Consumer(consumer_conf)
 consumer.subscribe([TOPIC])
 
 
-def worker():
+def worker2():
     print(" Worker escuchando tareas...")
     while True:
         msg = consumer.poll(1.0)
@@ -116,11 +118,65 @@ def worker():
             continue
         tarea = json.loads(msg.value().decode('utf-8'))
         print(f" Ejecutando tarea: {tarea}")
-'''
+        
+        # Guardar la respuesta como objeto Respuesta
+        pila_response_manage.set_respuesta(tarea['id'], tarea)
+def worker():
+    print(" Worker escuchando tareas...")
+
+    while True:
+        msg = consumer.poll(1.0)
+        if msg is None:
+            continue
+        if msg.error():
+            print("Error:", msg.error())
+            continue
+
+        try:
+            tarea = json.loads(msg.value().decode('utf-8'))
+            print(f"Ejecutando tarea: {tarea}")
+
+            id_tarea = tarea['id']
+            instruccion = tarea['instruccion'].upper()
+            modelo_nombre = tarea['modelo']
+            datos = tarea.get('datos', {})
+
+            # Obtener el modelo dinámicamente desde dborm
+            Modelo = getattr(dborm.db, modelo_nombre, None)
+            if Modelo is None:
+                print(f" Modelo '{modelo_nombre}' no encontrado")
+                pila_response_manage.set_respuesta(id_tarea, {"error": f"Modelo '{modelo_nombre}' no existe"})
+                continue
+
+            resultado = None
+
+            # Ejecutar  instrucción
+            if instruccion == "GET":
+                with db_session:
+                    registros = Modelo.select()[:]
+                    resultado = [r.to_full_dict() for r in registros]
+                pila_manager.actualizar_estado(id_tarea, "realizada")
+
+            else:
+                resultado = {"error": f"Instrucción '{instruccion}' no soportada "}
+
+            # Guardar la respuesta en caché temporal
+            pila_response_manage.set_respuesta(id_tarea, resultado)
+
+        except Exception as e:
+            print(f" Error al procesar tarea: {str(e)}")
+            pila_response_manage.set_respuesta(tarea['id'], {"error": str(e)})
+
 # =========================
 # Rutas de la API
 # =========================
 
+@app.route("/status/<id_tarea>", methods=["GET"])
+def obtener_respuesta(id_tarea):
+    if pila_response_manage.existe(id_tarea):
+        return jsonify(pila_response_manage.get_respuesta(id_tarea)), 200
+    else:
+        return jsonify({"error": "Respuesta aún no disponible"}), 404
 
 
 @app.route("/initdb", methods=["POST"])
@@ -330,11 +386,14 @@ def agregar_carrera():
 def listar_carreras():
     tarea = pila_manager
     #tarea.guardar_tarea(instruccion="GET", modelo="Carrera", datos='')
-    #tarea_pila = publicar_tarea("POST", "Carrera", '')
+    tarea_pila = publicar_tarea("GET", "Carrera", '')
     
     Carrera = dborm.db.Carrera
     carreras = Carrera.select()[:]
     data = [c.to_full_dict() for c in carreras]
+    
+    data.append({"id_tarea": str(tarea_pila.id)})
+    
     return jsonify(data), 200
 
 
@@ -371,6 +430,8 @@ def listar_planes():
     PlanDeEstudio = dborm.db.PlanDeEstudio
     planes = PlanDeEstudio.select()[:]
     data = [p.to_full_dict() for p in planes]
+    tarea_pila = publicar_tarea("GET", "PlanDeEstudio", '')
+    data.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(data), 200
 
 
@@ -419,6 +480,8 @@ def listar_materias():
     Materia = dborm.db.Materia
     materias = Materia.select()[:]  
     data = [m.to_full_dict() for m in materias]  
+    tarea_pila = publicar_tarea("GET", "Materia", '')
+    data.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(data), 200
 
 # =========================
@@ -447,6 +510,8 @@ def listar_prerrequisitos():
     print(Prerequisito)
     print(Prerequisito.select())
     prerequisitos = [n.to_full_dict() for n in Prerequisito.select()]
+    tarea_pila = publicar_tarea("GET", "Prerequisito", '')
+    prerequisitos.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(prerequisitos), 200
     
 
@@ -471,6 +536,8 @@ def agregar_nivel():
 def listar_niveles():
     Nivel = dborm.db.Nivel
     niveles = [n.to_full_dict() for n in Nivel.select()]
+    tarea_pila = publicar_tarea("GET", "Nivel", '')
+    niveles.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(niveles), 200
 
 # =========================
@@ -502,6 +569,8 @@ def agregar_docente():
 def listar_docentes():
     Docente = dborm.db.Docente
     docentes = [n.to_full_dict() for n in Docente.select()]
+    tarea_pila = publicar_tarea("GET", "Docente", '')
+    docentes.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(docentes), 200
 
 
@@ -533,6 +602,8 @@ def agregar_estudiante():
 def listar_estudiantes():
     Estudiante = dborm.db.Estudiante
     estudiantes = [n.to_full_dict() for n in Estudiante.select()]
+    tarea_pila = publicar_tarea("GET", "Estudiante", '')
+    estudiantes.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(estudiantes), 200
 
 
@@ -546,6 +617,8 @@ def listar_estudiantes():
 def listar_modulos():
     Modulo = dborm.db.Modulo
     modulos = [n.to_full_dict() for n in Modulo.select()]
+    tarea_pila = publicar_tarea("GET", "Modulo", '')
+    modulos.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(modulos), 200
 
 
@@ -803,6 +876,8 @@ def agregar_grupo_materia():
 def listar_grupos_materia():
     GrupoMateria = dborm.db.GrupoMateria
     grupos = [n.to_full_dict() for n in GrupoMateria.select()]
+    tarea_pila = publicar_tarea("GET", "GrupoMateria", '')
+    grupos.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(grupos), 200
   
 
@@ -848,6 +923,8 @@ def agregar_inscripcion():
 def listar_inscripciones():
     Inscripcion = dborm.db.Inscripcion
     inscripciones =[n.to_full_dict() for n in Inscripcion.select()]
+    tarea_pila = publicar_tarea("GET", "Inscripcion", '')
+    inscripciones.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(inscripciones), 200
 
 # =========================
@@ -885,6 +962,8 @@ def agregar_inscripcion_materia():
 def listar_inscripcion_materia():
     InscripcionMateria = dborm.db.InscripcionMateria
     inscripciones_materia = [n.to_full_dict() for n in InscripcionMateria.select()]
+    tarea_pila = publicar_tarea("GET", "InscripcionMateria", '')
+    inscripciones_materia.append({"id_tarea": str(tarea_pila.id)})
     return jsonify(inscripciones_materia), 200
 
 
@@ -993,6 +1072,6 @@ def obtener_materias_estudiante():
 
 if __name__ == "__main__":
         # Arrancamos el worker en un hilo
-    #threading.Thread(target=worker, daemon=True).start()
+    threading.Thread(target=worker, daemon=True).start()
 
     app.run(host="0.0.0.0", port=8000,use_reloader=True)
