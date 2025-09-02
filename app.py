@@ -11,6 +11,7 @@ from pila import PilaManager
 from confluent_kafka import KafkaError
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
+from flask_restx import Api, Resource, fields
 
 
 app = Flask(__name__)
@@ -32,7 +33,7 @@ pila_manager = PilaManager(dborm.db)
 
 KAFKA_SERVERS = '3.143.108.22:9092'
 TOPIC = 'tareas'
-
+'''
 # --- Productor ---
 producer_conf = {'bootstrap.servers': KAFKA_SERVERS}
 producer = Producer(producer_conf)
@@ -56,7 +57,7 @@ for topic, f in fs.items():
         else:
             # Para otros errores, mostramos advertencia
             print(f" Error creando topic '{topic}': {e}")
-
+'''
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -81,7 +82,7 @@ def token_required(f):
     return decorated
 
 
-
+'''
 def publicar_tarea(instruccion, modelo, datos):
     """Guardar en BD y publicar ."""
     tarea = pila_manager.guardar_tarea(instruccion, modelo, datos)
@@ -115,10 +116,13 @@ def worker():
             continue
         tarea = json.loads(msg.value().decode('utf-8'))
         print(f" Ejecutando tarea: {tarea}")
-
+'''
 # =========================
 # Rutas de la API
 # =========================
+
+
+
 @app.route("/initdb", methods=["POST"])
 @db_session
 def initdb():
@@ -326,17 +330,12 @@ def agregar_carrera():
 def listar_carreras():
     tarea = pila_manager
     #tarea.guardar_tarea(instruccion="GET", modelo="Carrera", datos='')
-    
-    tarea_pila = publicar_tarea("POST", "Carrera", '')
+    #tarea_pila = publicar_tarea("POST", "Carrera", '')
     
     Carrera = dborm.db.Carrera
-    carreras = [{
-        "id": c.id,
-        "nombre": c.nombre,
-        "codigo": c.codigo,
-        "otros": c.otros
-    } for c in Carrera.select()]
-    return jsonify(carreras), 200
+    carreras = Carrera.select()[:]
+    data = [c.to_full_dict() for c in carreras]
+    return jsonify(data), 200
 
 
 
@@ -370,16 +369,21 @@ def agregar_plan():
 @db_session
 def listar_planes():
     PlanDeEstudio = dborm.db.PlanDeEstudio
-    planes = [{
-        "id": p.id,
-        "nombre": p.nombre,
-        "codigo": p.codigo,
-        "fecha": str(p.fecha),
-        "estado": p.estado,
-        "carrera": p.carrera.nombre
-    } for p in PlanDeEstudio.select()]
-    return jsonify(planes), 200
+    planes = PlanDeEstudio.select()[:]
+    data = [p.to_full_dict() for p in planes]
+    return jsonify(data), 200
 
+
+'''
+@app.route("/planes", methods=["GET"]) 
+@token_required @db_session 
+def listar_planes(): 
+PlanDeEstudio = dborm.db.PlanDeEstudio 
+planes = PlanDeEstudio.select()[:] 
+data = [] 
+for p in planes:
+plan_dict = p.to_dict() # Carrera en dict if p.carrera: plan_dict["carrera"] = p.carrera.to_dict() if p.materias: # Materias en dict plan_dict["materias"] = [m.to_dict() for m in p.materias] data.append(plan_dict) return jsonify(data), 200
+'''
 
 # =========================
 # Rutas Materia (uno por uno)
@@ -413,15 +417,9 @@ def agregar_materia():
 @db_session
 def listar_materias():
     Materia = dborm.db.Materia
-    materias = [{
-        "id": m.id,
-        "sigla": m.sigla,
-        "nombre": m.nombre,
-        "creditos": m.creditos,
-        "plan": m.plan.nombre,
-        "nivel": m.nivel.nivel
-    } for m in Materia.select()]
-    return jsonify(materias), 200
+    materias = Materia.select()[:]  
+    data = [m.to_full_dict() for m in materias]  
+    return jsonify(data), 200
 
 # =========================
 @app.route("/prerrequisitos", methods=["POST"])
@@ -446,12 +444,11 @@ def agregar_prerrequisito():
 @db_session
 def listar_prerrequisitos():
     Prerequisito = dborm.db.Prerequisito
-    prereqs = [{
-        "id": p.id,
-        "materia": p.materia.nombre,
-        "prerequisito": p.materia_requisito.nombre  # 🔑 corregido
-    } for p in Prerequisito.select()]
-    return jsonify(prereqs), 200
+    print(Prerequisito)
+    print(Prerequisito.select())
+    prerequisitos = [n.to_full_dict() for n in Prerequisito.select()]
+    return jsonify(prerequisitos), 200
+    
 
 # ---------- NIVELES ----------
 @app.route("/niveles", methods=["POST"])
@@ -473,7 +470,7 @@ def agregar_nivel():
 @db_session
 def listar_niveles():
     Nivel = dborm.db.Nivel
-    niveles = [{"id": n.id, "nivel": n.nivel} for n in Nivel.select()]
+    niveles = [n.to_full_dict() for n in Nivel.select()]
     return jsonify(niveles), 200
 
 # =========================
@@ -504,13 +501,7 @@ def agregar_docente():
 @db_session
 def listar_docentes():
     Docente = dborm.db.Docente
-    docentes = [{
-        "id": d.id,
-        "registro": d.registro,
-        "ci": d.ci,
-        "nombre": d.nombre,
-        "telefono": d.telefono
-    } for d in Docente.select()]
+    docentes = [n.to_full_dict() for n in Docente.select()]
     return jsonify(docentes), 200
 
 
@@ -541,7 +532,7 @@ def agregar_estudiante():
 @db_session
 def listar_estudiantes():
     Estudiante = dborm.db.Estudiante
-    estudiantes = [{"id": e.id, "nombre": e.nombre, "registro": e.registro} for e in Estudiante.select()]
+    estudiantes = [n.to_full_dict() for n in Estudiante.select()]
     return jsonify(estudiantes), 200
 
 
@@ -554,15 +545,7 @@ def listar_estudiantes():
 @db_session
 def listar_modulos():
     Modulo = dborm.db.Modulo
-    modulos = [
-        {
-            "id": m.id,
-            "numero": m.numero,
-            "nombre": m.nombre,
-            "aulas": [{"id": a.id, "numero": a.numero, "nombre": a.nombre} for a in m.aulas]
-        }
-        for m in Modulo.select()
-    ]
+    modulos = [n.to_full_dict() for n in Modulo.select()]
     return jsonify(modulos), 200
 
 
@@ -598,15 +581,7 @@ def agregar_modulo():
 @db_session
 def listar_aulas():
     Aula = dborm.db.Aula
-    aulas = [
-        {
-            "id": a.id,
-            "numero": a.numero,
-            "nombre": a.nombre,
-            "modulo": {"id": a.modulo.id, "numero": a.modulo.numero}
-        }
-        for a in Aula.select()
-    ]
+    aulas = [n.to_full_dict() for n in Aula.select()]
     return jsonify(aulas), 200
 
 
@@ -677,24 +652,8 @@ def agregar_horario():
 @db_session
 def listar_horarios():
     Horario = dborm.db.Horario
-    horarios = [{
-        "id": h.id,
-        "dia": h.dia,
-        "hora_inicio": str(h.hora_inicio),
-        "hora_fin": str(h.hora_fin),
-        "grupo": {
-            "id": h.grupo.id,
-            "nombre": h.grupo.nombre,
-            "materia": h.grupo.materia.nombre,
-            "docente": h.grupo.docente.nombre
-        },
-        "aula": {
-            "id": h.aula.id,
-            "numero": h.aula.numero,
-            "modulo": h.aula.modulo.numero
-        } if h.aula else None
-    } for h in Horario.select()]
-    return jsonify(horarios), 200
+    horarios = [n.to_full_dict() for n in Horario.select()]
+    return jsonify({"horarios": horarios}), 200
 
 
 # =========================
@@ -720,7 +679,7 @@ def agregar_gestion():
 @db_session
 def listar_gestiones():
     Gestion = dborm.db.Gestion
-    gestiones = [{"id": g.id, "anio": g.anio} for g in Gestion.select()]
+    gestiones = [n.to_full_dict() for n in Gestion.select()]
     return jsonify(gestiones), 200
 
 # =========================
@@ -746,9 +705,9 @@ def agregar_tipoperiodo():
 @db_session
 def listar_tipoperiodos():
     TipoPeriodo = dborm.db.TipoPeriodo
-    tps = [{"id": tp.id, "nombre": tp.nombre} for tp in TipoPeriodo.select()]
+    tps = [n.to_full_dict() for n in TipoPeriodo.select()]
     return jsonify(tps), 200
-
+    
 # =========================
 # Periodo
 # =========================
@@ -790,13 +749,7 @@ def agregar_periodo():
 @db_session
 def listar_periodos():
     Periodo = dborm.db.Periodo
-    periodos = [{
-        "id": p.id,
-        "numero": p.numero,
-        "descripcion": p.descripcion,
-        "gestion": {"id": p.gestion.id, "anio": p.gestion.anio},
-        "tipoperiodo": {"id": p.tipoperiodo.id, "nombre": p.tipoperiodo.nombre}
-    } for p in Periodo.select()]
+    periodos = [n.to_full_dict() for n in Periodo.select()]
     return jsonify(periodos), 200
 
 
@@ -849,17 +802,9 @@ def agregar_grupo_materia():
 @db_session
 def listar_grupos_materia():
     GrupoMateria = dborm.db.GrupoMateria
-    grupos = [{
-        "id": g.id,
-        "grupo": g.grupo,
-        "nombre": g.nombre,
-        "estado": g.estado,
-        "materia": {"id": g.materia.id, "nombre": g.materia.nombre},
-        "docente": {"id": g.docente.id, "nombre": g.docente.nombre},
-        "periodo": {"id": g.periodo.id, "numero": g.periodo.numero, "descripcion": g.periodo.descripcion}
-    } for g in GrupoMateria.select()]
+    grupos = [n.to_full_dict() for n in GrupoMateria.select()]
     return jsonify(grupos), 200
-
+  
 
 
 
@@ -902,12 +847,7 @@ def agregar_inscripcion():
 @db_session
 def listar_inscripciones():
     Inscripcion = dborm.db.Inscripcion
-    inscripciones = [{
-        "id": i.id,
-        "fecha": str(i.fecha),
-        "estudiante": {"id": i.estudiante.id, "nombre": i.estudiante.nombre},
-        "periodo": {"id": i.periodo.id, "numero": i.periodo.numero}
-    } for i in Inscripcion.select()]
+    inscripciones =[n.to_full_dict() for n in Inscripcion.select()]
     return jsonify(inscripciones), 200
 
 # =========================
@@ -944,19 +884,7 @@ def agregar_inscripcion_materia():
 @db_session
 def listar_inscripcion_materia():
     InscripcionMateria = dborm.db.InscripcionMateria
-    inscripciones_materia = [{
-        "id": im.id,
-        "inscripcion": {
-            "id": im.inscripcion.id,
-            "estudiante": im.inscripcion.estudiante.nombre
-        },
-        "grupo": {
-            "id": im.grupo.id,
-            "nombre": im.grupo.nombre,
-            "materia": im.grupo.materia.nombre,
-            "docente": im.grupo.docente.nombre
-        }
-    } for im in InscripcionMateria.select()]
+    inscripciones_materia = [n.to_full_dict() for n in InscripcionMateria.select()]
     return jsonify(inscripciones_materia), 200
 
 
@@ -1006,17 +934,7 @@ def agregar_nota():
 @db_session
 def listar_notas():
     Nota = dborm.db.Nota
-    notas = [{
-        "id": n.id,
-        "valor": n.nota,
-        "inscripcion_materia": {
-            "id": n.inscripcion_materia.id,
-            "estudiante": n.inscripcion_materia.inscripcion.estudiante.nombre,
-            "grupo": n.inscripcion_materia.grupo.nombre,
-            "materia": n.inscripcion_materia.grupo.materia.nombre,
-            "docente": n.inscripcion_materia.grupo.docente.nombre
-        }
-    } for n in Nota.select()]
+    notas = [n.to_full_dict() for n in Nota.select()]
     return jsonify(notas), 200
 
 @app.route("/notasxregistro", methods=["GET"])
@@ -1054,32 +972,17 @@ def obtener_materias_estudiante():
     estudiante_registro = request.args.get("registro")
     if not estudiante_registro:
         return jsonify({"error": "Debes enviar registro del estudiante"}), 400
-
     Estudiante = dborm.db.Estudiante
-
     try:
         estudiante = Estudiante.get(registro=estudiante_registro)
         if not estudiante:
             return jsonify({"error": "Estudiante no encontrado"}), 404
-
-        materias = [
-            {
-                "id": im.grupo.materia.id,
-                "sigla": im.grupo.materia.sigla,
-                "nombre": im.grupo.materia.nombre,
-                "grupo": im.grupo.grupo,
-                "docente": im.grupo.docente.nombre,
-                "periodo": im.grupo.periodo.numero
-            }
+        materias = {
+            m.grupo.materia.id: m.grupo.materia.to_dict()  #Usa el ID de la materia como clave (para evitar duplicados) Usa el diccionario de la materia como valor (to_dict())
             for insc in estudiante.inscripciones
-            for im in insc.materias
-        ]
-
-        return jsonify({
-            "registro": estudiante_registro,
-            "nombre": estudiante.nombre,
-            "materias_inscritas": materias
-        }), 200
+            for m in insc.materias # aqui materias es = InscripcionMateria
+        }
+        return jsonify( materias ), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1090,6 +993,6 @@ def obtener_materias_estudiante():
 
 if __name__ == "__main__":
         # Arrancamos el worker en un hilo
-    threading.Thread(target=worker, daemon=True).start()
+    #threading.Thread(target=worker, daemon=True).start()
 
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000,use_reloader=True)
