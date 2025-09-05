@@ -253,7 +253,7 @@ def login():
         token = jwt.encode(
             {
                 "user": estudiante.registro,
-                "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2)
+                "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)
             },
             SECRET_KEY,
             algorithm="HS256"
