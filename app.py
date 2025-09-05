@@ -6,13 +6,16 @@ import datetime
 from functools import wraps
 import threading
 import jwt
+from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
+
+from cola import Cola
 from ponyorm import DatabaseORM
-from pila import PilaManager
-from pilaresponse import PilaResponseCache
-from confluent_kafka import KafkaError
-from confluent_kafka import Producer, Consumer
-from confluent_kafka.admin import AdminClient, NewTopic
+import uuid
 from flask_restx import Api, Resource, fields
+
+from serial import dumps_obj
+from tarea import Tarea,Metodo,Prioridad
+from task_manager import WorkerManager
 
 
 app = Flask(__name__)
@@ -29,37 +32,23 @@ dborm = DatabaseORM(
 
 SECRET_KEY = "mi_clave_secreta"
 
-pila_manager = PilaManager(dborm.db)
-
-pila_response_manage = PilaResponseCache()
-
-
-KAFKA_SERVERS =   '3.142.76.191:9092'    #'3.143.108.22:9092'
-TOPIC = 'tareas'
-
-# --- Productor ---
-producer_conf = {'bootstrap.servers': KAFKA_SERVERS}
-producer = Producer(producer_conf)
-admin_conf = {'bootstrap.servers': KAFKA_SERVERS}
-admin_client = AdminClient(admin_conf)
+REDIS_HOST = "18.191.219.182"     # ej: "54.210.xxx.xxx"
+REDIS_PORT = 6379
+REDIS_PASSWORD = "contraseniasegura2025"
 
 
+cola = Cola(
+    redis_host=REDIS_HOST,
+    redis_port=REDIS_PORT,
+    redis_password=REDIS_PASSWORD,  # tu password
+    redis_db=5,
+    nombre="cola"
+)
 
-topic_list = [NewTopic(TOPIC, num_partitions=1, replication_factor=1)]
-fs = admin_client.create_topics(topic_list)
+worker_manager = WorkerManager(cola=cola, dborm=dborm, num_workers=1, bzpop_timeout=5)
+worker_manager.start()
 
 
-for topic, f in fs.items():
-    try:
-        f.result()  # Bloquea hasta que se cree el topic
-        print(f" Topic '{topic}' creado correctamente")
-    except Exception as e:
-        # Si ya existe, solo lo ignoramos
-        if isinstance(e, KafkaError) and e.code() == KafkaError.TOPIC_ALREADY_EXISTS:
-            print(f"ℹ Topic '{topic}' ya existe, se usará el existente")
-        else:
-            # Para otros errores, mostramos advertencia
-            print(f" Error creando topic '{topic}': {e}")
 
 def token_required(f):
     @wraps(f)
@@ -84,98 +73,29 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
-
-def publicar_tarea(instruccion, modelo, datos):
-    """Guardar en BD y publicar ."""
-    tarea = pila_manager.guardar_tarea(instruccion, modelo, datos)
-    producer.produce(TOPIC, key=str(tarea.id), value=json.dumps({
-        "id": tarea.id,
-        "instruccion": instruccion,
-        "modelo": modelo,
-        "datos": datos
-    }))
-    producer.flush()
-    return tarea
-
-# --- Consumidor ---
-consumer_conf = {
-    'bootstrap.servers': KAFKA_SERVERS,
-    'group.id': 'worker-grupo',
-    'auto.offset.reset': 'earliest'
-}
-consumer = Consumer(consumer_conf)
-consumer.subscribe([TOPIC])
-
-
-def worker2():
-    print(" Worker escuchando tareas...")
-    while True:
-        msg = consumer.poll(1.0)
-        if msg is None:
-            continue
-        if msg.error():
-            print(" Error:", msg.error())
-            continue
-        tarea = json.loads(msg.value().decode('utf-8'))
-        print(f" Ejecutando tarea: {tarea}")
-        
-        # Guardar la respuesta como objeto Respuesta
-        pila_response_manage.set_respuesta(tarea['id'], tarea)
-def worker():
-    print(" Worker escuchando tareas...")
-
-    while True:
-        msg = consumer.poll(1.0)
-        if msg is None:
-            continue
-        if msg.error():
-            print("Error:", msg.error())
-            continue
-
-        try:
-            tarea = json.loads(msg.value().decode('utf-8'))
-            print(f"Ejecutando tarea: {tarea}")
-
-            id_tarea = tarea['id']
-            instruccion = tarea['instruccion'].upper()
-            modelo_nombre = tarea['modelo']
-            datos = tarea.get('datos', {})
-
-            # Obtener el modelo dinámicamente desde dborm
-            Modelo = getattr(dborm.db, modelo_nombre, None)
-            if Modelo is None:
-                print(f" Modelo '{modelo_nombre}' no encontrado")
-                pila_response_manage.set_respuesta(id_tarea, {"error": f"Modelo '{modelo_nombre}' no existe"})
-                continue
-
-            resultado = None
-
-            # Ejecutar  instrucción
-            if instruccion == "GET":
-                with db_session:
-                    registros = Modelo.select()[:]
-                    resultado = [r.to_full_dict() for r in registros]
-                pila_manager.actualizar_estado(id_tarea, "realizada")
-
-            else:
-                resultado = {"error": f"Instrucción '{instruccion}' no soportada "}
-
-            # Guardar la respuesta en caché temporal
-            pila_response_manage.set_respuesta(id_tarea, resultado)
-
-        except Exception as e:
-            print(f" Error al procesar tarea: {str(e)}")
-            pila_response_manage.set_respuesta(tarea['id'], {"error": str(e)})
-
 # =========================
 # Rutas de la API
 # =========================
+@app.route("/statusall", methods=["GET"])
+def obtener_respuestaall():
+    resultado = cola.obtener_todas_las_tareas()
+    print(resultado)
+    if resultado:
+        return jsonify({"resultado": "res"}), 200
+    else:
+        # Si no hay resultado disponible aún
+        return jsonify({"error": "Respuesta aún no disponible"}), 404
+
 
 @app.route("/status/<id_tarea>", methods=["GET"])
 def obtener_respuesta(id_tarea):
-    if pila_response_manage.existe(id_tarea):
-        return jsonify(pila_response_manage.get_respuesta(id_tarea)), 200
+    #resultado = cola.obtener_todas_las_tareas()
+    resultado = cola.obtener_resultado(id_tarea)
+    #print(resultado)
+    if resultado:
+        return jsonify({"resultado": resultado}), 200
     else:
+        # Si no hay resultado disponible aún
         return jsonify({"error": "Respuesta aún no disponible"}), 404
 
 
@@ -233,8 +153,8 @@ def initdb():
         Prerequisito(materia=m4, materia_requisito=m5)  # BD requiere SO
 
         # Docentes
-        d1 = Docente(registro="DOC-001", ci="1234567", nombre="Juan Pérez", telefono="76543210", otros="Docente de programación")
-        d2 = Docente(registro="DOC-002", ci="7654321", nombre="María Gómez", telefono="71234567", otros="Docente de sistemas")
+        d1 = Docente(registro="12345678", ci="1234567", nombre="Juan Pérez", telefono="76543210", otros="Docente de programación")
+        d2 = Docente(registro="123456789", ci="7654321", nombre="María Gómez", telefono="71234567", otros="Docente de sistemas")
 
 
         # Gestión
@@ -278,7 +198,7 @@ def initdb():
 
         # Estudiante
         est1 = Estudiante(
-            registro="EST-001",
+            registro="12345678",
             ci="9876543",
             nombre="Carlos Ramírez",
             telefono="78965412",
@@ -361,11 +281,7 @@ def agregar_carrera():
             "otros": data.get("otros", "")
         }
 
-        # Guardar la tarea en la pila
-        tarea = pila_manager
-        #tarea_pila =tarea.guardar_tarea(instruccion="POST", modelo="Carrera", datos=datos_serializados)
-        tarea_pila = publicar_tarea("POST", "Carrera", datos_serializados)
-
+        
     
         #carrera = Carrera(
          #   nombre=data["nombre"],
@@ -374,7 +290,7 @@ def agregar_carrera():
         #)
         #commit()
         #return jsonify({"msg": "Carrera agregada con éxito", "id": carrera.id}), 201
-        return jsonify({"msg": "Carrera agregada con éxito", "id": tarea_pila.id}), 201
+        return jsonify({"msg": "Carrera agregada con éxito"}), 201
     
     except Exception as e:
         rollback()
@@ -384,20 +300,43 @@ def agregar_carrera():
 @token_required
 @db_session
 def listar_carreras():
-    tarea = pila_manager
     #tarea.guardar_tarea(instruccion="GET", modelo="Carrera", datos='')
-    tarea_pila = publicar_tarea("GET", "Carrera", '')
+    
     
     Carrera = dborm.db.Carrera
     carreras = Carrera.select()[:]
     data = [c.to_full_dict() for c in carreras]
     
-    data.append({"id_tarea": str(tarea_pila.id)})
+    
     
     return jsonify(data), 200
+@app.route("/stop", methods=["POST"])
+def stop_workers():
+    """Detiene todos los workers"""
+    try:
+        worker_manager.stop_all()
+        return jsonify({"message": "Workers detenido "}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
+@app.route("/pause", methods=["POST"])
+def pause_workers():
+    """Pausa todos los workers"""
+    try:
+        worker_manager.pause_all()
+        return jsonify({"message": "Workers pausado "}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+@app.route("/resume", methods=["POST"])
+def resume_workers():
+    """Reanuda todos los workers"""
+    try:
+        worker_manager.resume_all()
+        return jsonify({"message": "Workers continuado "}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # =========================
 # Rutas PlanDeEstudio
 # =========================
@@ -422,6 +361,30 @@ def agregar_plan():
     except Exception as e:
         rollback()
         return jsonify({"error": str(e)}), 400
+    
+@app.route("/planes2", methods=["POST"])
+@token_required
+@db_session
+def agregar_plan2():
+   
+    data = request.json
+    try:
+        dto = PlanDeEstudioDTO(
+            nombre=data["nombre"],
+            codigo=data["codigo"],
+            fecha=datetime.date.fromisoformat(data["fecha"]),
+            estado=data["estado"],
+            carrera_id=data["carrera_id"])
+        tarea_id = cola.agregar(
+        metodo=Metodo.POST,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())
+        ) 
+        return jsonify({"msg": "tarea procesandose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
 
 @app.route("/planes", methods=["GET"])
 @token_required
@@ -430,9 +393,22 @@ def listar_planes():
     PlanDeEstudio = dborm.db.PlanDeEstudio
     planes = PlanDeEstudio.select()[:]
     data = [p.to_full_dict() for p in planes]
-    tarea_pila = publicar_tarea("GET", "PlanDeEstudio", '')
-    data.append({"id_tarea": str(tarea_pila.id)})
+    cola.agregar( metodo=Metodo.GET, prioridad=Prioridad.ALTA, payload=data)
+    tarea = cola.obtener()
+    print("Tarea obtenida de la cola:", tarea)
     return jsonify(data), 200
+
+@app.route("/planes2", methods=["GET"])
+@token_required
+@db_session
+def listar_planes2():
+    dto = PlanDeEstudioDTO()
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())
+    ) 
+    return jsonify({"id_tarea": tarea_id}), 202
 
 
 '''
@@ -480,8 +456,7 @@ def listar_materias():
     Materia = dborm.db.Materia
     materias = Materia.select()[:]  
     data = [m.to_full_dict() for m in materias]  
-    tarea_pila = publicar_tarea("GET", "Materia", '')
-    data.append({"id_tarea": str(tarea_pila.id)})
+    
     return jsonify(data), 200
 
 # =========================
@@ -510,8 +485,7 @@ def listar_prerrequisitos():
     print(Prerequisito)
     print(Prerequisito.select())
     prerequisitos = [n.to_full_dict() for n in Prerequisito.select()]
-    tarea_pila = publicar_tarea("GET", "Prerequisito", '')
-    prerequisitos.append({"id_tarea": str(tarea_pila.id)})
+    
     return jsonify(prerequisitos), 200
     
 
@@ -536,8 +510,7 @@ def agregar_nivel():
 def listar_niveles():
     Nivel = dborm.db.Nivel
     niveles = [n.to_full_dict() for n in Nivel.select()]
-    tarea_pila = publicar_tarea("GET", "Nivel", '')
-    niveles.append({"id_tarea": str(tarea_pila.id)})
+    
     return jsonify(niveles), 200
 
 # =========================
@@ -569,8 +542,7 @@ def agregar_docente():
 def listar_docentes():
     Docente = dborm.db.Docente
     docentes = [n.to_full_dict() for n in Docente.select()]
-    tarea_pila = publicar_tarea("GET", "Docente", '')
-    docentes.append({"id_tarea": str(tarea_pila.id)})
+    
     return jsonify(docentes), 200
 
 
@@ -602,8 +574,7 @@ def agregar_estudiante():
 def listar_estudiantes():
     Estudiante = dborm.db.Estudiante
     estudiantes = [n.to_full_dict() for n in Estudiante.select()]
-    tarea_pila = publicar_tarea("GET", "Estudiante", '')
-    estudiantes.append({"id_tarea": str(tarea_pila.id)})
+   
     return jsonify(estudiantes), 200
 
 
@@ -617,8 +588,7 @@ def listar_estudiantes():
 def listar_modulos():
     Modulo = dborm.db.Modulo
     modulos = [n.to_full_dict() for n in Modulo.select()]
-    tarea_pila = publicar_tarea("GET", "Modulo", '')
-    modulos.append({"id_tarea": str(tarea_pila.id)})
+    
     return jsonify(modulos), 200
 
 
@@ -876,8 +846,7 @@ def agregar_grupo_materia():
 def listar_grupos_materia():
     GrupoMateria = dborm.db.GrupoMateria
     grupos = [n.to_full_dict() for n in GrupoMateria.select()]
-    tarea_pila = publicar_tarea("GET", "GrupoMateria", '')
-    grupos.append({"id_tarea": str(tarea_pila.id)})
+    
     return jsonify(grupos), 200
   
 
@@ -923,8 +892,7 @@ def agregar_inscripcion():
 def listar_inscripciones():
     Inscripcion = dborm.db.Inscripcion
     inscripciones =[n.to_full_dict() for n in Inscripcion.select()]
-    tarea_pila = publicar_tarea("GET", "Inscripcion", '')
-    inscripciones.append({"id_tarea": str(tarea_pila.id)})
+   
     return jsonify(inscripciones), 200
 
 # =========================
@@ -962,8 +930,7 @@ def agregar_inscripcion_materia():
 def listar_inscripcion_materia():
     InscripcionMateria = dborm.db.InscripcionMateria
     inscripciones_materia = [n.to_full_dict() for n in InscripcionMateria.select()]
-    tarea_pila = publicar_tarea("GET", "InscripcionMateria", '')
-    inscripciones_materia.append({"id_tarea": str(tarea_pila.id)})
+   
     return jsonify(inscripciones_materia), 200
 
 
@@ -1071,7 +1038,6 @@ def obtener_materias_estudiante():
 
 
 if __name__ == "__main__":
-        # Arrancamos el worker en un hilo
-    threading.Thread(target=worker, daemon=True).start()
+        
 
     app.run(host="0.0.0.0", port=8000,use_reloader=True)

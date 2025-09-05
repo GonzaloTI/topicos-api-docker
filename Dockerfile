@@ -22,10 +22,6 @@ COPY app.py .
 
 COPY ponyorm.py .
 
-COPY pila.py .
-
-COPY pilaresponse.py .
-
 COPY respuesta.py .
 
 EXPOSE 8000

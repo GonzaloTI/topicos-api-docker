@@ -52,6 +52,8 @@ class DatabaseORM:
             def to_full_dict(self):
                 """Convierte el plan en un dict incluyendo relaciones aun no se usa o_dict(with_collections=True, related_objects=True)"""
                 data = self.to_dict()
+                if self.fecha:
+                    data["fecha"] = self.fecha.isoformat()  # "2025-01-01"
                 data["carrera"] = self.carrera.to_dict() if self.carrera else None
                 data["materias"] = [m.to_dict() for m in self.materias] if self.materias else []
                 return data
