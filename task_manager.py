@@ -100,14 +100,14 @@ class TaskWorker(threading.Thread):
 
             try:
                 handler = self._handlers.get(tarea.metodo)
-                print(f"procesando tarea: {tarea}")
-                print(f"Procesando tarea: {tarea.id} con método: {tarea.metodo.value}")
+                #print(f"procesando tarea: {tarea}")
+                #print(f"Procesando tarea: {tarea.id} con método: {tarea.metodo.value}")
                 
                 if handler is None:
                     raise ValueError(f"Método no soportado: {tarea.metodo.value}")
 
                 resultado = handler(tarea)  # Ejecuta el handler de la tarea
-                print(f"Tarea {tarea.id} completada con éxito. Resultado: {resultado}")
+                #print(f"Tarea {tarea.id} completada con éxito. Resultado: {resultado}")
                 tarea.marcar_realizado(resultado)
                 self._save_status(tarea)
 
@@ -160,6 +160,7 @@ class TaskWorker(threading.Thread):
   
     @db_session
     def _handle_post(self, tarea: Tarea):
+        print("entrada en post para procesar",tarea)
        
         return None
 
