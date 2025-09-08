@@ -160,8 +160,8 @@ class TaskWorker(threading.Thread):
   
     @db_session
     def _handle_post(self, tarea: Tarea):
-        print("entrada en post para procesar",tarea)
-       
+        print("entrada en post para procesar con wroker",tarea)
+
         return None
 
     @db_session
