@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 @dataclass
 class CarreraDTO:
     __entity__: str = "Carrera"
+    __identificadores__: str = "id,codigo"
     id: Optional[int] = None
     nombre: Optional[str] = None
     codigo: Optional[str] = None
@@ -13,6 +14,10 @@ class CarreraDTO:
     def to_dict(self) -> Dict[str, Any]:
         data = asdict(self)
         data.pop("id", None)
+        return data
+    
+    def to_dictid(self) -> Dict[str, Any]:
+        data = asdict(self)
         return data
 
     @classmethod

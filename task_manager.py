@@ -164,7 +164,7 @@ class TaskWorker(threading.Thread):
 
         # Crear entidad genérica
         result = Modelo(**data)
-        return result
+        return result.to_full_dict()
 
     @db_session
     def _handle_update(self, tarea: Tarea):
@@ -219,5 +219,5 @@ class TaskWorker(threading.Thread):
                     
             ##actualizar los campos, que esteen presentes , nada mas , 
         
-        return obj
+        return obj.to_full_dict()
 

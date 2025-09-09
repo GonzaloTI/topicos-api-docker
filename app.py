@@ -6,13 +6,14 @@ import datetime
 from functools import wraps
 import threading
 import jwt
+from DTO.CarreraDTO import CarreraDTO
+from DTO.MateriaDTO import MateriaDTO
 from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
 
 from cola import Cola
 from ponyorm import DatabaseORM
 import uuid
 
-from serial import dumps_obj
 from tarea import Tarea,Metodo,Prioridad
 from task_manager import WorkerManager
 
@@ -307,7 +308,78 @@ def listar_carreras():
     carreras = Carrera.select()[:]
     data = [c.to_full_dict() for c in carreras]
     
+@app.route("/carrerasasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_carreraasync():
+    data = request.json
+    try:
+        # Crear el DTO con los datos de la carrera
+        dto = CarreraDTO(
+            nombre=data["nombre"],
+            codigo=data["codigo"],
+            otros=data.get("otros", "")
+        )
+        
+        # Agregar la tarea a la cola para procesarla de manera asincrónica
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+        ) 
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
     
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+    
+@app.route("/carrerasasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_carrera():
+    data = request.json
+    try:
+        # Crear el DTO con los datos de la carrera para actualización
+        dto = CarreraDTO(
+            id=data.get("id", None),
+            nombre=data.get("nombre", None),
+            codigo=data.get("codigo", None),
+            otros=data.get("otros", "")
+        )
+        
+        # Agregar la tarea de actualización a la cola
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())  # Usar to_dictid para mantener 'id' en el payload
+        ) 
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+@app.route("/carrerasasync", methods=["GET"])
+@token_required
+@db_session
+def listar_carrerasasync():
+    dto = CarreraDTO()  # Crear un DTO vacío para representar la búsqueda general de carreras
+    
+    # Agregar la tarea para listar todas las carreras a la cola
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+    ) 
+
+    return jsonify({"id_tarea": tarea_id}), 202
+    
+    
+    
+# =========================
+# Rutas Worker manager
+# ========================= 
     
     return jsonify(data), 200
 @app.route("/stop", methods=["POST"])
@@ -414,6 +486,17 @@ def agregar_planupdate():
         rollback()
         return jsonify({"error": str(e)}), 400
 
+@app.route("/planesasync", methods=["GET"])
+@token_required
+@db_session
+def listar_planes2():
+    dto = PlanDeEstudioDTO()
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())
+    ) 
+    return jsonify({"id_tarea": tarea_id}), 202
 
 
 @app.route("/planes", methods=["GET"])
@@ -428,29 +511,7 @@ def listar_planes():
     print("Tarea obtenida de la cola:", tarea)
     return jsonify(data), 200
 
-@app.route("/planesasync", methods=["GET"])
-@token_required
-@db_session
-def listar_planes2():
-    dto = PlanDeEstudioDTO()
-    tarea_id = cola.agregar(
-        metodo=Metodo.GET,
-        prioridad=Prioridad.ALTA,
-        payload=json.dumps(dto.to_dict())
-    ) 
-    return jsonify({"id_tarea": tarea_id}), 202
 
-
-'''
-@app.route("/planes", methods=["GET"]) 
-@token_required @db_session 
-def listar_planes(): 
-PlanDeEstudio = dborm.db.PlanDeEstudio 
-planes = PlanDeEstudio.select()[:] 
-data = [] 
-for p in planes:
-plan_dict = p.to_dict() # Carrera en dict if p.carrera: plan_dict["carrera"] = p.carrera.to_dict() if p.materias: # Materias en dict plan_dict["materias"] = [m.to_dict() for m in p.materias] data.append(plan_dict) return jsonify(data), 200
-'''
 
 # =========================
 # Rutas Materia (uno por uno)
@@ -488,6 +549,87 @@ def listar_materias():
     data = [m.to_full_dict() for m in materias]  
     
     return jsonify(data), 200
+
+@app.route("/materiasasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_materia_async():
+    data = request.json
+    try:
+        dto = MateriaDTO(
+            sigla=data["sigla"],
+            nombre=data["nombre"],
+            creditos=data["creditos"],
+            plan_id=data["plan_id"],
+            nivel_id=data["nivel_id"]
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict()) 
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/materiasasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_materia_async():
+    data = request.json
+    try:
+
+        dto = MateriaDTO(
+            id=data.get("id", None),
+            sigla=data.get("sigla", None),
+            nombre=data.get("nombre", None),
+            creditos=data.get("creditos", None),
+            plan_id=data.get("plan_id", None),
+            nivel_id=data.get("nivel_id", None)
+        )
+
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())  
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+    
+@app.route("/materiasasync", methods=["GET"])
+@token_required
+@db_session
+def listar_materias_async():
+    dto = MateriaDTO() 
+
+    
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  
+    )
+
+    return jsonify({"id_tarea": tarea_id}), 202
+
+
+
+
+
+
+
+
+
+
+
 
 # =========================
 @app.route("/prerrequisitos", methods=["POST"])
