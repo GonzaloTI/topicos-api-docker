@@ -11,7 +11,6 @@ from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
 from cola import Cola
 from ponyorm import DatabaseORM
 import uuid
-from flask_restx import Api, Resource, fields
 
 from serial import dumps_obj
 from tarea import Tarea,Metodo,Prioridad
@@ -362,7 +361,7 @@ def agregar_plan():
         rollback()
         return jsonify({"error": str(e)}), 400
     
-@app.route("/planes2", methods=["POST"])
+@app.route("/planesasync", methods=["POST"])
 @token_required
 @db_session
 def agregar_plan2():

@@ -1,4 +1,6 @@
 # task_manager.py
+from datetime import date
+import datetime
 import json
 import base64
 import cloudpickle
@@ -37,16 +39,6 @@ class WorkerManager:
             w.join(timeout=2.0)
 
 # ------Worker -----------------------------------
-
-def _loads_base64_maybe(s):
-    """retorna el objeto de cloudpickle"""
-    if not isinstance(s, str):
-        return s
-    try:
-        return cloudpickle.loads(base64.b64decode(s.encode("utf-8")))
-    except Exception:
-        return s
-
 
 class TaskWorker(threading.Thread):
     def __init__(
@@ -126,46 +118,97 @@ class TaskWorker(threading.Thread):
                 data[k] = repr(data.get(k))
         self.cola.redis.hset(self._status_hash, tarea.id, json.dumps(data, ensure_ascii=False))
 
-    # -------- utils de modelo --------
-    def _resolve_entity_from_class(self, cls):
-       
-        if not hasattr(cls, "__name__"):
-            raise ValueError("Modelo serializado inválido: no es una clase")
-        name = cls.__name__
-        Modelo = getattr(self.dborm.db, name, None)
-        if Modelo is None:
-            raise ValueError(f"Modelo '{name}' no existe en dborm.db")
-        return Modelo
-
-    def _obj_to_dict(self, obj):
-        if hasattr(obj, "to_full_dict"): return obj.to_full_dict()
-        if hasattr(obj, "to_dict"):      return obj.to_dict()
-        return obj.to_dict()
-
   
        # -------- handlers por metodo GET , POST, UPDATE--------
     @db_session
     def _handle_get(self, tarea: Tarea):
        
-        dto_data = json.loads(tarea.payload) 
-        dto = PlanDeEstudioDTO.from_dict(dto_data)  
-        Modelo = getattr(self.dborm.db, dto.__entity__)  
-
+        dto_data = json.loads(tarea.payload)
+        entity_name = dto_data.get("__entity__")
+        Modelo = getattr(self.dborm.db, entity_name, None)
+        
         query = Modelo.select()
         
         result = [item.to_full_dict() for item in query]
 
         return result
 
-  
     @db_session
     def _handle_post(self, tarea: Tarea):
-        print("entrada en post para procesar con wroker",tarea)
+        print("entrada en post para procesar con worker generico", tarea)
 
-        return None
+        dto_data = json.loads(tarea.payload)
+        entity_name = dto_data.get("__entity__")
+
+        Modelo = getattr(self.dborm.db, entity_name, None)
+        if Modelo is None:
+            raise ValueError(f"Modelo '{entity_name}' no existe en dborm.db.")
+
+        # Quitar metadata 
+        data = {k: v for k, v in dto_data.items() if k != "__entity__" and k != "id"}
+
+        # Recorrer campos para convertir relaciones
+        for attr, val in list(data.items()):
+            if val is None:
+                continue
+
+            # Relaciones: si el campo termina en "_id"
+            if attr.endswith("_id"):
+                rel_name = attr[:-3]  
+                if rel_name in Modelo._adict_:  
+                    RelatedEntity = Modelo._adict_[rel_name].py_type
+                    data[rel_name] = RelatedEntity[val]  # obtener la entidad por PK
+                    data.pop(attr)
+
+        # Crear entidad genérica
+        result = Modelo(**data)
+        return result
 
     @db_session
     def _handle_update(self, tarea: Tarea):
+        dto = json.loads(tarea.payload)
+        entity_name = dto.get("__entity__")
+        
+
+        Modelo = getattr(self.dborm.db, entity_name, None)
+        if Modelo is None:
+            raise ValueError(f"Modelo '{entity_name}' no existe en dborm.db.")
+
+        if "id" not in dto or dto["id"] is None:
+            raise ValueError("Para UPDATE se requiere 'id' en el payload.")
+
+        obj = Modelo.get(id=dto["id"])
+        if obj is None:
+            raise ValueError(f"No existe {entity_name} con id={dto['id']}.")
+                    
+        attrs = Modelo._adict_
+
+        for key, value in dto.items():
+            if key in ("__entity__", "id"):
+                continue
+            if value is None:
+                continue  # no tocar campos None
+
+            # actualizar referencia hacia una relación con *_id
+            if key.endswith("_id"):
+                nombre_relacion = key[:-3]
+                atributo_relacion = attrs.get(nombre_relacion)
+                if atributo_relacion and getattr(atributo_relacion, "is_relation", False) and not getattr(atributo_relacion, "is_collection", False):
+                    EntidadRelacionada = atributo_relacion.py_type
+                    objeto_relacion = EntidadRelacionada.get(id=value)
+                    if objeto_relacion is None:
+                        raise ValueError(f"No existe {EntidadRelacionada.__name__} con id={value} para '{nombre_relacion}'.")
+                    setattr(obj, nombre_relacion, objeto_relacion)
+                continue
+
+
+            # actualizar campos presentes (simples o relaciones ya resueltas fuera)
+            if key in attrs:
+                setattr(obj, key, value)
+
+        commit()        
+                    
+            ##actualizar los campos, que esteen presentes , nada mas , 
         
         return None
 
