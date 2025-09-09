@@ -8,7 +8,13 @@ import threading
 import jwt
 from DTO.CarreraDTO import CarreraDTO
 from DTO.MateriaDTO import MateriaDTO
+from DTO.PrerequisitoDTO import PrerequisitoDTO
+from DTO.NivelDTO import NivelDTO
+from DTO.DocenteDTO import DocenteDTO
+from DTO.ModuloDTO import ModuloDTO
+from DTO.EstudianteDTO import EstudianteDTO
 from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
+from DTO.AulasDTO import AulaDTO
 
 from cola import Cola
 from ponyorm import DatabaseORM
@@ -462,7 +468,7 @@ def agregar_planasync():
 @app.route("/planesasync", methods=["PUT"])
 @token_required
 @db_session
-def agregar_planupdate():
+def agregar_planupdateasync():
    
     data = request.json
     try:
@@ -489,7 +495,7 @@ def agregar_planupdate():
 @app.route("/planesasync", methods=["GET"])
 @token_required
 @db_session
-def listar_planes2():
+def listar_planesasync():
     dto = PlanDeEstudioDTO()
     tarea_id = cola.agregar(
         metodo=Metodo.GET,
@@ -660,6 +666,36 @@ def listar_prerrequisitos():
     
     return jsonify(prerequisitos), 200
     
+@app.route("/prerrequisitosasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_prerrequisito_async():
+    data = request.json
+    try:
+        # Crear el DTO con los datos del prerrequisito
+        dto = PrerequisitoDTO(
+            materia_id=data["materia_id"],
+            materia_id_requisito=data["prereq_id"]
+        )
+
+        # Agregar la tarea a la cola para procesarla de manera asincrónica
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+    
+    
+    
+    
+    
+    
 
 # ---------- NIVELES ----------
 @app.route("/niveles", methods=["POST"])
@@ -684,6 +720,45 @@ def listar_niveles():
     niveles = [n.to_full_dict() for n in Nivel.select()]
     
     return jsonify(niveles), 200
+
+
+@app.route("/nivelesasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_nivelasync():
+    data = request.json
+    try:
+        dto = NivelDTO(
+            nivel=data["nivel"]
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/nivelesasync", methods=["GET"])
+@token_required
+@db_session
+def listar_nivelesasync():
+    dto = NivelDTO()  # Crear un DTO vacío para representar la búsqueda general de niveles
+
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())
+    )
+
+    return jsonify({"id_tarea": tarea_id}), 202
+
+
 
 # =========================
 # Rutas Docente
@@ -717,6 +792,74 @@ def listar_docentes():
     
     return jsonify(docentes), 200
 
+@app.route("/docentesasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_docente_async():
+    data = request.json
+    try:
+        dto = DocenteDTO(
+            registro=data["registro"],
+            ci=data["ci"],
+            nombre=data["nombre"],
+            telefono=data["telefono"],
+            otros=data.get("otros", "")
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/docentesasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_docente_async():
+    data = request.json
+    try:
+        dto = DocenteDTO(
+            id=data.get("id", None),
+            registro=data.get("registro", None),
+            ci=data.get("ci", None),
+            nombre=data.get("nombre", None),
+            telefono=data.get("telefono", None),
+            otros=data.get("otros", "")
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())  # Usar el método `to_dictid` para incluir 'id' en el payload
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/docentesasync", methods=["GET"])
+@token_required
+@db_session
+def listar_docentes_async():
+    dto = DocenteDTO()  # Crear un DTO vacío para representar la búsqueda general de docentes
+
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+    )
+
+    return jsonify({"id_tarea": tarea_id}), 202
+
+
 
 # ---------- ESTUDIANTES ----------
 @app.route("/estudiantes", methods=["POST"])
@@ -748,6 +891,74 @@ def listar_estudiantes():
     estudiantes = [n.to_full_dict() for n in Estudiante.select()]
    
     return jsonify(estudiantes), 200
+@app.route("/estudiantesasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_estudiante_async():
+    data = request.json
+    try:
+        dto = EstudianteDTO(
+            registro=data["registro"],
+            ci=data["ci"],
+            nombre=data["nombre"],
+            telefono=data.get("telefono", ""),
+            correo=data.get("correo", ""),
+            otros=data.get("otros", "")
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/estudiantesasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_estudiante_async():
+    data = request.json
+    try:
+        dto = EstudianteDTO(
+            id=data.get("id", None),
+            registro=data.get("registro", None),
+            ci=data.get("ci", None),
+            nombre=data.get("nombre", None),
+            telefono=data.get("telefono", None),
+            correo=data.get("correo", None),
+            otros=data.get("otros", "")
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())  # Usar el método `to_dictid` para incluir 'id' en el payload
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+@app.route("/estudiantesasync", methods=["GET"])
+@token_required
+@db_session
+def listar_estudiantes_async():
+    dto = EstudianteDTO()  # Crear un DTO vacío para representar la búsqueda general de estudiantes
+
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+    )
+
+    return jsonify({"id_tarea": tarea_id}), 202
+
 
 
 # =========================
@@ -785,6 +996,68 @@ def agregar_modulo():
         }), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@app.route("/modulosasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_modulo_async():
+    data = request.json
+    try:
+        dto = ModuloDTO(
+            numero=data["numero"],
+            nombre=data.get("nombre", "")
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/modulosasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_modulo_async():
+    data = request.json
+    try:
+        dto = ModuloDTO(
+            id=data.get("id", None),
+            numero=data.get("numero", None),
+            nombre=data.get("nombre", None)
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())  # Usar el método `to_dictid` para incluir 'id' en el payload
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/modulosasync", methods=["GET"])
+@token_required
+@db_session
+def listar_modulos_async():
+    dto = ModuloDTO()  # Crear un DTO vacío para representar la búsqueda general de módulos
+
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+    )
+    
+ 
+    return jsonify({"id_tarea": tarea_id}), 202
 
 
 # =========================
@@ -826,6 +1099,36 @@ def agregar_aula():
         return jsonify({"error": "Módulo no encontrado"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+    
+    
+@app.route("/aulasasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_aula_async():
+    data = request.json
+    try:
+        dto = AulaDTO(
+            numero=data["numero"],
+            nombre=data.get("nombre", ""),
+            modulo_id=data["modulo_id"]
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+    
+    
+    
+#-------------horarios----------    
+    
 
 @app.route("/horarios", methods=["POST"])
 @db_session

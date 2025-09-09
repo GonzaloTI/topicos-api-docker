@@ -144,7 +144,6 @@ class TaskWorker(threading.Thread):
         if Modelo is None:
             raise ValueError(f"Modelo '{entity_name}' no existe en dborm.db.")
 
-        # Quitar metadata 
         data = {k: v for k, v in dto_data.items() if k != "__entity__" and k != "id" and k != "__identificadores__"}
 
         #print("datos a procesar ", data)
@@ -154,9 +153,8 @@ class TaskWorker(threading.Thread):
             if val is None:
                 continue
 
-            # Relaciones: si el campo termina en "_id"
-            if attr.endswith("_id"):
-                rel_name = attr[:-3]  
+            if '_id' in attr:  # Si el campo contiene '_id'
+                rel_name = attr.split('_id')[0]
                 if rel_name in Modelo._adict_:  
                     RelatedEntity = Modelo._adict_[rel_name].py_type
                     data[rel_name] = RelatedEntity[val]  # obtener la entidad por PK
