@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 @dataclass
 class PlanDeEstudioDTO:
     __entity__: str = "PlanDeEstudio"   # nombre de la entidad en PonyORM
+    __identificadores__:str="id,codigo" #buscar por otro atributo unico
     id: Optional[int] = None
     nombre: Optional[str] = None
     codigo: Optional[str] = None
@@ -17,6 +18,12 @@ class PlanDeEstudioDTO:
             self.fecha = self.fecha.isoformat()  
         data = asdict(self)  # Convierte el objeto en un diccionario
         data.pop("id", None)  # Elimina el campo 'id' si existe
+        return data
+    
+    def to_dictid(self) -> Dict[str, Any]:
+        if self.fecha:
+            self.fecha = self.fecha.isoformat()  
+        data = asdict(self)  # Convierte el objeto en un diccionario
         return data
 
     # Convierte dict → DTO (cuando lo sacamos de Redis)

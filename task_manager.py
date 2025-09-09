@@ -122,7 +122,7 @@ class TaskWorker(threading.Thread):
        # -------- handlers por metodo GET , POST, UPDATE--------
     @db_session
     def _handle_get(self, tarea: Tarea):
-       
+        print("entrada get para procesar con worker generico", tarea)
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
         Modelo = getattr(self.dborm.db, entity_name, None)
@@ -145,8 +145,10 @@ class TaskWorker(threading.Thread):
             raise ValueError(f"Modelo '{entity_name}' no existe en dborm.db.")
 
         # Quitar metadata 
-        data = {k: v for k, v in dto_data.items() if k != "__entity__" and k != "id"}
+        data = {k: v for k, v in dto_data.items() if k != "__entity__" and k != "id" and k != "__identificadores__"}
 
+        #print("datos a procesar ", data)
+        
         # Recorrer campos para convertir relaciones
         for attr, val in list(data.items()):
             if val is None:
@@ -166,21 +168,28 @@ class TaskWorker(threading.Thread):
 
     @db_session
     def _handle_update(self, tarea: Tarea):
+        print("entrada en update para procesar generico", tarea)
         dto = json.loads(tarea.payload)
         entity_name = dto.get("__entity__")
         
-
         Modelo = getattr(self.dborm.db, entity_name, None)
         if Modelo is None:
             raise ValueError(f"Modelo '{entity_name}' no existe en dborm.db.")
+        
+        if "id" in dto and dto["id"] is not None:
+            obj = Modelo.get(id=dto["id"])
+        else:
+            # Si no hay id, buscar entre los identificadores definidos en '__identificadores__'
+            identificadores = dto.get("__identificadores__", "").split(",")
+            for identificador in identificadores:
+                if identificador in dto and dto[identificador] is not None:
+                    obj = Modelo.get(**{identificador: dto[identificador]})  # Buscar por identificador alternativo
+                    if obj:
+                        break
 
-        if "id" not in dto or dto["id"] is None:
-            raise ValueError("Para UPDATE se requiere 'id' en el payload.")
-
-        obj = Modelo.get(id=dto["id"])
         if obj is None:
-            raise ValueError(f"No existe {entity_name} con id={dto['id']}.")
-                    
+            raise ValueError(f"No existe {entity_name} con los identificadores proporcionados.")
+                     
         attrs = Modelo._adict_
 
         for key, value in dto.items():
@@ -210,5 +219,5 @@ class TaskWorker(threading.Thread):
                     
             ##actualizar los campos, que esteen presentes , nada mas , 
         
-        return None
+        return obj
 

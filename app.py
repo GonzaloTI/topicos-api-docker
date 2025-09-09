@@ -78,13 +78,14 @@ def token_required(f):
 @app.route("/statusall", methods=["GET"])
 def obtener_respuestaall():
     resultado = cola.obtener_todas_las_tareas()
-    print(resultado)
+    #print(resultado)
     if resultado:
-        return jsonify({"resultado": "res"}), 200
+        tareas_serializadas = [tarea.to_dict() for tarea in resultado]
+        return jsonify({"resultado": tareas_serializadas}), 200
     else:
         # Si no hay resultado disponible aún
         return jsonify({"error": "Respuesta aún no disponible"}), 404
-
+  
 
 @app.route("/status/<id_tarea>", methods=["GET"])
 def obtener_respuesta(id_tarea):
@@ -364,7 +365,7 @@ def agregar_plan():
 @app.route("/planesasync", methods=["POST"])
 @token_required
 @db_session
-def agregar_plan2():
+def agregar_planasync():
    
     data = request.json
     try:
@@ -374,6 +375,7 @@ def agregar_plan2():
             fecha=datetime.date.fromisoformat(data["fecha"]),
             estado=data["estado"],
             carrera_id=data["carrera_id"])
+        
         tarea_id = cola.agregar(
         metodo=Metodo.POST,
         prioridad=Prioridad.ALTA,
@@ -384,6 +386,35 @@ def agregar_plan2():
     except Exception as e:
         rollback()
         return jsonify({"error": str(e)}), 400
+
+@app.route("/planesasync", methods=["PUT"])
+@token_required
+@db_session
+def agregar_planupdate():
+   
+    data = request.json
+    try:
+        dto = PlanDeEstudioDTO(
+            id=data.get("id",None),
+            nombre=data.get("nombre", None), 
+            codigo=data.get("codigo", None),  
+            fecha=datetime.date.fromisoformat(data["fecha"]) if "fecha" in data else None, 
+            estado=data.get("estado", None), 
+            carrera_id=data.get("carrera_id", None) 
+        )
+        
+        tarea_id = cola.agregar(
+        metodo=Metodo.PUT,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dictid())
+        ) 
+        return jsonify({"msg": "tarea procesandose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+
 
 @app.route("/planes", methods=["GET"])
 @token_required
@@ -397,7 +428,7 @@ def listar_planes():
     print("Tarea obtenida de la cola:", tarea)
     return jsonify(data), 200
 
-@app.route("/planes2", methods=["GET"])
+@app.route("/planesasync", methods=["GET"])
 @token_required
 @db_session
 def listar_planes2():

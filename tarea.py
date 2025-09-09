@@ -1,4 +1,5 @@
 from enum import Enum
+import json
 from typing import Any, Optional
 
 
@@ -68,7 +69,7 @@ class Tarea:
             "estado": self.estado.value,
             "resultado": self.resultado,   # puede ser None
         }
-
+   
     @staticmethod
     def from_dict(data: dict) -> "Tarea":
         return Tarea(
