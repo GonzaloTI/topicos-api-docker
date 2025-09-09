@@ -12,6 +12,11 @@ from DTO.PrerequisitoDTO import PrerequisitoDTO
 from DTO.NivelDTO import NivelDTO
 from DTO.DocenteDTO import DocenteDTO
 from DTO.ModuloDTO import ModuloDTO
+from DTO.HorarioDTO import HorarioDTO
+from DTO.InscripcionDTO import InscripcionDTO
+from DTO.GrupoMateriaDTO import GrupoMateriaDTO
+from DTO.NotaDTO import NotaDTO
+from DTO.InscripcionMateriaDTO import InscripcionMateriaDTO
 from DTO.EstudianteDTO import EstudianteDTO
 from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
 from DTO.AulasDTO import AulaDTO
@@ -228,10 +233,10 @@ def initdb():
         im4 = InscripcionMateria(inscripcion=insc, grupo=g4)
 
         # Notas
-        Nota(nota=85.5, inscripcion_materia=im1)
-        Nota(nota=72.0, inscripcion_materia=im2)
-        Nota(nota=90.0, inscripcion_materia=im3)
-        Nota(nota=68.5, inscripcion_materia=im4)
+        Nota(nota=85.5, inscripcionmateria=im1)
+        Nota(nota=72.0, inscripcionmateria=im2)
+        Nota(nota=90.0, inscripcionmateria=im3)
+        Nota(nota=68.5, inscripcionmateria=im4)
         
         commit()
         return jsonify({"msg": "Base de datos inicializada con éxito"}), 201
@@ -1125,6 +1130,45 @@ def agregar_aula_async():
         rollback()
         return jsonify({"error": str(e)}), 400
     
+@app.route("/aulasasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_aula_async():
+    data = request.json
+    try:
+        dto = AulaDTO(
+            id=data.get("id", None),
+            numero=data.get("numero", None),
+            nombre=data.get("nombre", None),
+            modulo_id=data.get("modulo_id", None)
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())  # Usar el método `to_dictid` para incluir 'id' en el payload
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+    
+    
+@app.route("/aulasasync", methods=["GET"])
+@token_required
+@db_session
+def listar_aulas_async():
+    dto = AulaDTO()  # Crear un DTO vacío para representar la búsqueda general de aulas
+
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+    )
+
+    return jsonify({"id_tarea": tarea_id}), 202
     
     
 #-------------horarios----------    
@@ -1173,6 +1217,73 @@ def listar_horarios():
     horarios = [n.to_full_dict() for n in Horario.select()]
     return jsonify({"horarios": horarios}), 200
 
+@app.route("/horariosasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_horario_async():
+    data = request.json
+    try:
+        # Crear el DTO para el horario
+        dto = HorarioDTO(
+            dia=data["dia"],
+            hora_inicio=data["hora_inicio"],
+            hora_fin=data["hora_fin"],
+            grupo_id=data["grupo_id"],
+            aula_id=data.get("aula_id", None)
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/horariosasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_horario_async():
+    data = request.json
+    try:
+        dto = HorarioDTO(
+            id=data.get("id", None),
+            dia=data.get("dia", None),
+            hora_inicio=data.get("hora_inicio", None),
+            hora_fin=data.get("hora_fin", None),
+            grupo_id=data.get("grupo_id", None),
+            aula_id=data.get("aula_id", None)
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())  # Usar to_dictid para mantener 'id' en el payload
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/horariosasync", methods=["GET"])
+@token_required
+@db_session
+def listar_horarios_async():
+    dto = HorarioDTO()  # Crear un DTO vacío para representar la búsqueda general de horarios
+
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+    )
+
+    return jsonify({"id_tarea": tarea_id}), 202
 
 # =========================
 # Gestión
@@ -1324,7 +1435,74 @@ def listar_grupos_materia():
     
     return jsonify(grupos), 200
   
+@app.route("/gruposmateriaasync", methods=["POST"])
+@token_required
+@db_session
+def grupomateriaasync():
+    data = request.json
+    try:
+        # Crear el DTO
+        dto = GrupoMateriaDTO(
+            grupo=data["grupo"],
+            nombre=data.get("nombre", ""),
+            estado=data.get("estado", ""),
+            materia_id=data["materia_id"],
+            docente_id=data["docente_id"],
+            periodo_id=data["periodo_id"]
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())
+        )
 
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/gruposmateriaasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_grupo_materia_async():
+    data = request.json
+    try:
+        # Crear el DTO para actualización
+        dto = GrupoMateriaDTO(
+            id=data.get("id", None),
+            grupo=data.get("grupo", None),
+            nombre=data.get("nombre", None),
+            estado=data.get("estado", None),
+            materia_id=data.get("materia_id", None),
+            docente_id=data.get("docente_id", None),
+            periodo_id=data.get("periodo_id", None)
+        )
+
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+    
+@app.route("/gruposmateriaasync", methods=["GET"])
+@token_required
+@db_session
+def listar_grupos_materia_async():
+    dto = GrupoMateriaDTO()
+
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar DTO serializado
+    )
+
+    return jsonify({"id_tarea": tarea_id}), 202
 
 
 # =========================
@@ -1370,6 +1548,75 @@ def listar_inscripciones():
    
     return jsonify(inscripciones), 200
 
+
+
+#----------inscripciones ----------
+
+@app.route("/inscripcionesasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_inscripcionasync():
+    data = request.json
+    try:
+        dto = InscripcionDTO(
+            fecha=datetime.date.fromisoformat(data["fecha"]),
+            estudiante_id=data["estudiante_id"],
+            periodo_id=data["periodo_id"]
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())
+        ) 
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/inscripcionesasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_inscripcionasync():
+    data = request.json
+    try:
+        dto = InscripcionDTO(
+            id=data.get("id", None),
+            fecha=datetime.date.fromisoformat(data["fecha"]) if "fecha" in data else None,
+            estudiante_id=data.get("estudiante_id", None),
+            periodo_id=data.get("periodo_id", None)
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())
+        ) 
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+    
+@app.route("/inscripcionesasync", methods=["GET"])
+@token_required
+@db_session
+def listar_inscripcionesasync():
+    dto = InscripcionDTO()  # Crear un DTO vacío para representar la búsqueda general de inscripciones
+    
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+    ) 
+
+    return jsonify({"id_tarea": tarea_id}), 202
+
+
+
+
+
 # =========================
 # InscripcionMateria
 # =========================
@@ -1411,6 +1658,67 @@ def listar_inscripcion_materia():
 
 
 
+@app.route("/inscripcionmateriaasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_inscripcion_materiaasync():
+    data = request.json
+    try:
+        dto = InscripcionMateriaDTO(
+            inscripcion_id=data["inscripcion_id"],
+            grupo_id=data["grupo_id"]
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())
+        )
+        
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/inscripcionmateriaasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_inscripcion_materiaasync():
+    data = request.json
+    try:
+        dto = InscripcionMateriaDTO(
+            id=data.get("id", None),
+            inscripcion_id=data.get("inscripcion_id", None),
+            grupo_id=data.get("grupo_id", None)
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())
+        )
+        
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/inscripcionmateriaasync", methods=["GET"])
+@token_required
+@db_session
+def listar_inscripcion_materiaasync():
+    dto = InscripcionMateriaDTO()  # DTO vacío para listar todas las inscripciones
+    
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())
+    )
+    
+    return jsonify({"id_tarea": tarea_id}), 202
+
 
 # =========================
 # POST - Agregar nota
@@ -1447,6 +1755,67 @@ def agregar_nota():
     except Exception as e:
         rollback()
         return jsonify({"error": str(e)}), 400
+
+@app.route("/notasasync", methods=["POST"])
+@token_required
+@db_session
+def agregar_nota_async():
+    data = request.json
+    try:
+        dto = NotaDTO(
+            nota=float(data["nota"]),
+            inscripcionmateria_id=data["InscripcionMateria_id"]
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.POST,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dict())
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/notasasync", methods=["PUT"])
+@token_required
+@db_session
+def actualizar_nota_async():
+    data = request.json
+    try:
+        dto = NotaDTO(
+            id=data.get("id", None),
+            nota=float(data["nota"]) if "nota" in data else None,
+            inscripcionmateria_id=data.get("InscripcionMateria_id", None)
+        )
+        
+        tarea_id = cola.agregar(
+            metodo=Metodo.PUT,
+            prioridad=Prioridad.ALTA,
+            payload=json.dumps(dto.to_dictid())
+        )
+
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/notasasync", methods=["GET"])
+@token_required
+@db_session
+def listar_notas_async():
+    dto = NotaDTO()  # DTO vacío para listar todas las notas
+    
+    tarea_id = cola.agregar(
+        metodo=Metodo.GET,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())
+    )
+    
+    return jsonify({"id_tarea": tarea_id}), 202
 
 # =========================
 # GET - Listar notas

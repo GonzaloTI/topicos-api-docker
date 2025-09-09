@@ -122,7 +122,7 @@ class TaskWorker(threading.Thread):
        # -------- handlers por metodo GET , POST, UPDATE--------
     @db_session
     def _handle_get(self, tarea: Tarea):
-        print("entrada get para procesar con worker generico", tarea)
+        #print("entrada get para procesar con worker generico", tarea)
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
         Modelo = getattr(self.dborm.db, entity_name, None)
@@ -135,7 +135,7 @@ class TaskWorker(threading.Thread):
 
     @db_session
     def _handle_post(self, tarea: Tarea):
-        print("entrada en post para procesar con worker generico", tarea)
+        #print("entrada en post para procesar con worker generico", tarea)
 
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
@@ -166,7 +166,7 @@ class TaskWorker(threading.Thread):
 
     @db_session
     def _handle_update(self, tarea: Tarea):
-        print("entrada en update para procesar generico", tarea)
+        #print("entrada en update para procesar generico", tarea)
         dto = json.loads(tarea.payload)
         entity_name = dto.get("__entity__")
         

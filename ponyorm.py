@@ -264,8 +264,8 @@ class DatabaseORM:
         class Nota(db.Entity):
             id = PrimaryKey(int, auto=True)
             nota = Required(float)
-            inscripcion_materia = Required(InscripcionMateria)
+            inscripcionmateria = Required(InscripcionMateria)
             def to_full_dict(self):
                 data = self.to_dict()
-                data["inscripcion_materia"] = self.inscripcion_materia.to_full_dict() if self.inscripcion_materia else None
+                data["inscripcionmateria"] = self.inscripcionmateria.to_full_dict() if self.inscripcionmateria else None
                 return data
