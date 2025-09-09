@@ -33,12 +33,6 @@ class DatabaseORM:
                 data["planes"] = [p.to_full_dict() for p in self.planes] if self.planes else []
                 return data
             
-        class Pila(db.Entity):
-            id = PrimaryKey(str, default=lambda: str(uuid.uuid4()))  # Generación de ID unico
-            instruccion = Required(str)  # Tipo de instrucción (GET, POST, UPDATE)
-            modelo = Required(str)  
-            estado = Required(str, default="pendiente") 
-            datos = Required(str)  
             
         class PlanDeEstudio(db.Entity):
             id = PrimaryKey(int, auto=True)
