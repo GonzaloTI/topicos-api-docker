@@ -46,7 +46,7 @@ class TaskWorker(threading.Thread):
         cola: Cola,
         dborm,                      
         name: Optional[str] = None,
-        bzpop_timeout: int = 5      
+        bzpop_timeout: int = 1   
     ):
         super().__init__(daemon=True, name=name or "TaskWorker")
         self.cola = cola
@@ -75,12 +75,15 @@ class TaskWorker(threading.Thread):
 
     def stop(self):
         self._stop_event.set()
-        self._run_event.set()  
+        self._run_event.set()
+        
+        
 
     # -------- loop --------
     def run(self):
         print(" Worker task_manage escuchando tareas....")
         while not self._stop_event.is_set():
+           
             if not self._run_event.wait(timeout=self.bzpop_timeout):
                 continue
 
@@ -89,6 +92,7 @@ class TaskWorker(threading.Thread):
                 continue
             tarea.marcar_procesando()
             self._save_status(tarea)
+            
 
             try:
                 handler = self._handlers.get(tarea.metodo)
@@ -122,7 +126,7 @@ class TaskWorker(threading.Thread):
        # -------- handlers por metodo GET , POST, UPDATE--------
     @db_session
     def _handle_get(self, tarea: Tarea):
-        #print("entrada get para procesar con worker generico", tarea)
+        print("entrada get para procesar con worker generico", tarea)
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
         Modelo = getattr(self.dborm.db, entity_name, None)
@@ -135,7 +139,7 @@ class TaskWorker(threading.Thread):
 
     @db_session
     def _handle_post(self, tarea: Tarea):
-        #print("entrada en post para procesar con worker generico", tarea)
+        print("entrada en post para procesar con worker generico", tarea)
 
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
@@ -166,7 +170,7 @@ class TaskWorker(threading.Thread):
 
     @db_session
     def _handle_update(self, tarea: Tarea):
-        #print("entrada en update para procesar generico", tarea)
+        print("entrada en update para procesar generico", tarea)
         dto = json.loads(tarea.payload)
         entity_name = dto.get("__entity__")
         

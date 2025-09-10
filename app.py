@@ -52,11 +52,11 @@ cola = Cola(
     redis_host=REDIS_HOST,
     redis_port=REDIS_PORT,
     redis_password=REDIS_PASSWORD,  # tu password
-    redis_db=5,
+    redis_db=8,
     nombre="cola"
 )
 
-worker_manager = WorkerManager(cola=cola, dborm=dborm, num_workers=1, bzpop_timeout=5)
+worker_manager = WorkerManager(cola=cola, dborm=dborm, num_workers=1, bzpop_timeout=1)
 worker_manager.start()
 
 
