@@ -7,7 +7,7 @@ class PrerequisitoDTO:
     __entity__: str = "Prerequisito"
     id: Optional[int] = None
     materia_id: Optional[int] = None
-    materia_id_requisito: Optional[int] = None
+    materia_requisito_id: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         data = asdict(self)

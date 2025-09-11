@@ -1,0 +1,101 @@
+[
+  { "url": "http://localhost:8000/statusall", "method": "GET" },
+  { "url": "http://localhost:8000/limpiarbd", "method": "GET" },
+  { "url": "http://localhost:8000/cola/resumen", "method": "GET" },
+  { "url": "http://localhost:8000/ui/cola", "method": "GET" },
+  { "url": "http://localhost:8000/status/1", "method": "GET" },
+  { "url": "http://localhost:8000/initdb", "method": "POST" },
+  { "url": "http://localhost:8000/login", "method": "POST", "body": { "usuario": "12345678", "password": "9876543" } },
+
+  { "url": "http://localhost:8000/carreras", "method": "GET" },
+  { "url": "http://localhost:8000/carreras", "method": "POST", "body": { "nombre": "Ingeniería", "codigo": "C-001", "otros": "info" } },
+  { "url": "http://localhost:8000/carrerasasync", "method": "GET" },
+  { "url": "http://localhost:8000/carrerasasync", "method": "POST", "body": { "nombre": "Ingeniería", "codigo": "C-001", "otros": "info" } },
+  { "url": "http://localhost:8000/carrerasasync", "method": "PUT", "body": { "id": 1, "nombre": "Nueva Carrera", "codigo": "C-002", "otros": "" } },
+
+  { "url": "http://localhost:8000/planes", "method": "GET" },
+  { "url": "http://localhost:8000/planes", "method": "POST", "body": { "nombre": "Plan 2025", "codigo": "PL-01", "fecha": "2025-01-01", "estado": "Vigente", "carrera_id": 1 } },
+  { "url": "http://localhost:8000/planesasync", "method": "GET" },
+  { "url": "http://localhost:8000/planesasync", "method": "POST", "body": { "nombre": "Plan Async", "codigo": "PL-02", "fecha": "2025-02-01", "estado": "Vigente", "carrera_id": 1 } },
+  { "url": "http://localhost:8000/planesasync", "method": "PUT", "body": { "id": 1, "nombre": "Plan Editado", "codigo": "PL-03", "fecha": "2025-03-01", "estado": "Inactivo", "carrera_id": 1 } },
+
+  { "url": "http://localhost:8000/materias", "method": "GET" },
+  { "url": "http://localhost:8000/materias", "method": "POST", "body": { "sigla": "MAT-101", "nombre": "Matemáticas", "creditos": 5, "plan_id": 1, "nivel_id": 1 } },
+  { "url": "http://localhost:8000/materiasasync", "method": "GET" },
+  { "url": "http://localhost:8000/materiasasync", "method": "POST", "body": { "sigla": "INF-202", "nombre": "Programación II", "creditos": 6, "plan_id": 1, "nivel_id": 2 } },
+  { "url": "http://localhost:8000/materiasasync", "method": "PUT", "body": { "id": 1, "sigla": "INF-203", "nombre": "Estructuras", "creditos": 6, "plan_id": 1, "nivel_id": 2 } },
+
+  { "url": "http://localhost:8000/prerrequisitos", "method": "GET" },
+  { "url": "http://localhost:8000/prerrequisitos", "method": "POST", "body": { "materia_id": 1, "prereq_id": 2 } },
+  { "url": "http://localhost:8000/prerrequisitosasync", "method": "POST", "body": { "materia_id": 1, "prereq_id": 2 } },
+
+  { "url": "http://localhost:8000/niveles", "method": "GET" },
+  { "url": "http://localhost:8000/niveles", "method": "POST", "body": { "nivel": 1 } },
+  { "url": "http://localhost:8000/nivelesasync", "method": "GET" },
+  { "url": "http://localhost:8000/nivelesasync", "method": "POST", "body": { "nivel": 2 } },
+
+  { "url": "http://localhost:8000/docentes", "method": "GET" },
+  { "url": "http://localhost:8000/docentes", "method": "POST", "body": { "registro": "123", "ci": "456", "nombre": "Juan", "telefono": "7777", "otros": "Docente" } },
+  { "url": "http://localhost:8000/docentesasync", "method": "GET" },
+  { "url": "http://localhost:8000/docentesasync", "method": "POST", "body": { "registro": "124", "ci": "457", "nombre": "Pedro", "telefono": "8888", "otros": "" } },
+  { "url": "http://localhost:8000/docentesasync", "method": "PUT", "body": { "id": 1, "registro": "125", "ci": "458", "nombre": "Luis", "telefono": "9999", "otros": "" } },
+
+  { "url": "http://localhost:8000/estudiantes", "method": "GET" },
+  { "url": "http://localhost:8000/estudiantes", "method": "POST", "body": { "registro": "321", "ci": "654", "nombre": "Carlos", "telefono": "7000", "correo": "c@c.com", "otros": "" } },
+  { "url": "http://localhost:8000/estudiantesasync", "method": "GET" },
+  { "url": "http://localhost:8000/estudiantesasync", "method": "POST", "body": { "registro": "322", "ci": "655", "nombre": "Mario", "telefono": "7010", "correo": "m@m.com", "otros": "" } },
+  { "url": "http://localhost:8000/estudiantesasync", "method": "PUT", "body": { "id": 1, "registro": "323", "ci": "656", "nombre": "Ana", "telefono": "7020", "correo": "a@a.com", "otros": "" } },
+
+  { "url": "http://localhost:8000/modulos", "method": "GET" },
+  { "url": "http://localhost:8000/modulos", "method": "POST", "body": { "numero": "101", "nombre": "Edificio A" } },
+  { "url": "http://localhost:8000/modulosasync", "method": "GET" },
+  { "url": "http://localhost:8000/modulosasync", "method": "POST", "body": { "numero": "102", "nombre": "Edificio B" } },
+  { "url": "http://localhost:8000/modulosasync", "method": "PUT", "body": { "id": 1, "numero": "103", "nombre": "Edificio C" } },
+
+  { "url": "http://localhost:8000/aulas", "method": "GET" },
+  { "url": "http://localhost:8000/aulas", "method": "POST", "body": { "numero": "201", "nombre": "Laboratorio", "modulo_id": 1 } },
+  { "url": "http://localhost:8000/aulasasync", "method": "GET" },
+  { "url": "http://localhost:8000/aulasasync", "method": "POST", "body": { "numero": "202", "nombre": "Sala 2", "modulo_id": 1 } },
+  { "url": "http://localhost:8000/aulasasync", "method": "PUT", "body": { "id": 1, "numero": "203", "nombre": "Sala 3", "modulo_id": 1 } },
+
+  { "url": "http://localhost:8000/horarios", "method": "GET" },
+  { "url": "http://localhost:8000/horarios", "method": "POST", "body": { "dia": "Lunes", "hora_inicio": "08:00:00", "hora_fin": "10:00:00", "grupo_id": 1, "aula_id": 1 } },
+  { "url": "http://localhost:8000/horariosasync", "method": "GET" },
+  { "url": "http://localhost:8000/horariosasync", "method": "POST", "body": { "dia": "Martes", "hora_inicio": "10:00:00", "hora_fin": "12:00:00", "grupo_id": 1, "aula_id": 1 } },
+  { "url": "http://localhost:8000/horariosasync", "method": "PUT", "body": { "id": 1, "dia": "Miércoles", "hora_inicio": "14:00:00", "hora_fin": "16:00:00", "grupo_id": 1, "aula_id": 1 } },
+
+  { "url": "http://localhost:8000/gestiones", "method": "GET" },
+  { "url": "http://localhost:8000/gestiones", "method": "POST", "body": { "anio": 2025 } },
+
+  { "url": "http://localhost:8000/tipoperiodos", "method": "GET" },
+  { "url": "http://localhost:8000/tipoperiodos", "method": "POST", "body": { "nombre": "Semestral" } },
+
+  { "url": "http://localhost:8000/periodos", "method": "GET" },
+  { "url": "http://localhost:8000/periodos", "method": "POST", "body": { "numero": "1", "descripcion": "Semestre 1", "gestion_id": 1, "tipoperiodo_id": 1 } },
+
+  { "url": "http://localhost:8000/gruposmateria", "method": "GET" },
+  { "url": "http://localhost:8000/gruposmateria", "method": "POST", "body": { "grupo": "A", "nombre": "Grupo A", "estado": "Activo", "materia_id": 1, "docente_id": 1, "periodo_id": 1 } },
+  { "url": "http://localhost:8000/gruposmateriaasync", "method": "GET" },
+  { "url": "http://localhost:8000/gruposmateriaasync", "method": "POST", "body": { "grupo": "B", "nombre": "Grupo B", "estado": "Activo", "materia_id": 1, "docente_id": 1, "periodo_id": 1 } },
+  { "url": "http://localhost:8000/gruposmateriaasync", "method": "PUT", "body": { "id": 1, "grupo": "C", "nombre": "Grupo C", "estado": "Inactivo", "materia_id": 1, "docente_id": 1, "periodo_id": 1 } },
+
+  { "url": "http://localhost:8000/inscripciones", "method": "GET" },
+  { "url": "http://localhost:8000/inscripciones", "method": "POST", "body": { "fecha": "2025-02-01", "estudiante_id": 1, "periodo_id": 1 } },
+  { "url": "http://localhost:8000/inscripcionesasync", "method": "GET" },
+  { "url": "http://localhost:8000/inscripcionesasync", "method": "POST", "body": { "fecha": "2025-03-01", "estudiante_id": 1, "periodo_id": 1 } },
+  { "url": "http://localhost:8000/inscripcionesasync", "method": "PUT", "body": { "id": 1, "fecha": "2025-04-01", "estudiante_id": 1, "periodo_id": 1 } },
+
+  { "url": "http://localhost:8000/inscripcionmateria", "method": "GET" },
+  { "url": "http://localhost:8000/inscripcionmateria", "method": "POST", "body": { "inscripcion_id": 1, "grupo_id": 1 } },
+  { "url": "http://localhost:8000/inscripcionmateriaasync", "method": "GET" },
+  { "url": "http://localhost:8000/inscripcionmateriaasync", "method": "POST", "body": { "inscripcion_id": 1, "grupo_id": 1 } },
+  { "url": "http://localhost:8000/inscripcionmateriaasync", "method": "PUT", "body": { "id": 1, "inscripcion_id": 1, "grupo_id": 1 } },
+
+  { "url": "http://localhost:8000/notas", "method": "GET" },
+  { "url": "http://localhost:8000/notas", "method": "POST", "body": { "nota": 80, "inscripcion_materia_id": 1 } },
+  { "url": "http://localhost:8000/notasasync", "method": "GET" },
+  { "url": "http://localhost:8000/notasasync", "method": "POST", "body": { "nota": 90, "InscripcionMateria_id": 1 } },
+  { "url": "http://localhost:8000/notasasync", "method": "PUT", "body": { "id": 1, "nota": 95, "InscripcionMateria_id": 1 } },
+  { "url": "http://localhost:8000/notasxregistro?registro=12345678", "method": "GET" },
+  { "url": "http://localhost:8000/materiasxregistro?registro=12345678", "method": "GET" }
+]

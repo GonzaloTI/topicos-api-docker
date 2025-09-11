@@ -1,6 +1,5 @@
 # task_manager.py
-from datetime import date
-import datetime
+from datetime import datetime, date
 import json
 import base64
 import cloudpickle
@@ -130,96 +129,143 @@ class TaskWorker(threading.Thread):
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
         Modelo = getattr(self.dborm.db, entity_name, None)
-        
         query = Modelo.select()
-        
         result = [item.to_full_dict() for item in query]
-
         return result
 
     @db_session
     def _handle_post(self, tarea: Tarea):
-        print("entrada en post para procesar con worker generico", tarea)
-
+        """Handler mejorado para POST con mejor manejo de relaciones"""
+        print("Procesando POST con worker genérico", tarea)
+        
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
-
+        
+        # Obtener el modelo
         Modelo = getattr(self.dborm.db, entity_name, None)
         if Modelo is None:
             raise ValueError(f"Modelo '{entity_name}' no existe en dborm.db.")
-
-        data = {k: v for k, v in dto_data.items() if k != "__entity__" and k != "id" and k != "__identificadores__"}
-
-        #print("datos a procesar ", data)
         
-        # Recorrer campos para convertir relaciones
-        for attr, val in list(data.items()):
-            if val is None:
-                continue
-
-            if '_id' in attr:  # Si el campo contiene '_id'
-                rel_name = attr.split('_id')[0]
-                if rel_name in Modelo._adict_:  
-                    RelatedEntity = Modelo._adict_[rel_name].py_type
-                    data[rel_name] = RelatedEntity[val]  # obtener la entidad por PK
-                    data.pop(attr)
-
-        # Crear entidad genérica
-        result = Modelo(**data)
-        return result.to_full_dict()
-
+        # Filtrar datos válidos (excluir metadatos)
+        data = {k: v for k, v in dto_data.items() 
+                if k not in ("__entity__", "id", "__identificadores__") and v is not None}
+        
+        # Procesar los datos antes de crear la entidad
+        processed_data = self._process_entity_data(Modelo, data)
+        
+        # Crear la entidad
+        try:
+            result = Modelo(**processed_data)
+            commit()  # Asegurar que se guarde
+            return result.to_full_dict()
+        except Exception as e:
+            raise ValueError(f"Error al crear {entity_name}: {str(e)}")
+    
     @db_session
     def _handle_update(self, tarea: Tarea):
-        print("entrada en update para procesar generico", tarea)
-        dto = json.loads(tarea.payload)
-        entity_name = dto.get("__entity__")
+        """Handler mejorado para PUT/UPDATE con mejor manejo de relaciones"""
+        print("Procesando UPDATE con worker genérico", tarea)
         
+        dto_data = json.loads(tarea.payload)
+        entity_name = dto_data.get("__entity__")
+        
+        # Obtener el modelo
         Modelo = getattr(self.dborm.db, entity_name, None)
         if Modelo is None:
             raise ValueError(f"Modelo '{entity_name}' no existe en dborm.db.")
         
-        if "id" in dto and dto["id"] is not None:
-            obj = Modelo.get(id=dto["id"])
-        else:
-            # Si no hay id, buscar entre los identificadores definidos en '__identificadores__'
-            identificadores = dto.get("__identificadores__", "").split(",")
-            for identificador in identificadores:
-                if identificador in dto and dto[identificador] is not None:
-                    obj = Modelo.get(**{identificador: dto[identificador]})  # Buscar por identificador alternativo
-                    if obj:
-                        break
-
+        # Buscar la entidad existente
+        obj = self._find_existing_entity(Modelo, dto_data)
         if obj is None:
             raise ValueError(f"No existe {entity_name} con los identificadores proporcionados.")
-                     
-        attrs = Modelo._adict_
-
-        for key, value in dto.items():
-            if key in ("__entity__", "id"):
-                continue
-            if value is None:
-                continue  # no tocar campos None
-
-            # actualizar referencia hacia una relación con *_id
-            if key.endswith("_id"):
-                nombre_relacion = key[:-3]
-                atributo_relacion = attrs.get(nombre_relacion)
-                if atributo_relacion and getattr(atributo_relacion, "is_relation", False) and not getattr(atributo_relacion, "is_collection", False):
-                    EntidadRelacionada = atributo_relacion.py_type
-                    objeto_relacion = EntidadRelacionada.get(id=value)
-                    if objeto_relacion is None:
-                        raise ValueError(f"No existe {EntidadRelacionada.__name__} con id={value} para '{nombre_relacion}'.")
-                    setattr(obj, nombre_relacion, objeto_relacion)
-                continue
-
-
-            # actualizar campos presentes (simples o relaciones ya resueltas fuera)
-            if key in attrs:
-                setattr(obj, key, value)
-
-        commit()        
-                    
-            ##actualizar los campos, que esteen presentes , nada mas , 
         
+        # Filtrar y procesar datos para actualización
+        data = {k: v for k, v in dto_data.items() 
+                if k not in ("__entity__", "id", "__identificadores__") and v is not None}
+        
+        processed_data = self._process_entity_data(Modelo, data)
+        
+        # Actualizar los campos
+        for field_name, value in processed_data.items():
+            if hasattr(obj, field_name):
+                setattr(obj, field_name, value)
+        
+        commit()
         return obj.to_full_dict()
+    
+    def _find_existing_entity(self, Modelo, dto_data):
+        """Buscar entidad existente por ID o identificadores alternativos"""
+        # Primero intentar por ID
+        if "id" in dto_data and dto_data["id"] is not None:
+            return Modelo.get(id=dto_data["id"])
+        
+        # Si no hay ID, buscar por identificadores alternativos
+        identificadores = dto_data.get("__identificadores__", "").split(",")
+        for identificador in identificadores:
+            identificador = identificador.strip()
+            if identificador in dto_data and dto_data[identificador] is not None:
+                try:
+                    obj = Modelo.get(**{identificador: dto_data[identificador]})
+                    if obj:
+                        return obj
+                except Exception:
+                    continue  # Continuar con el siguiente identificador
+        
+        return None
+    
+    def _process_entity_data(self, Modelo, data):
+        """Procesar datos de entrada, manejando relaciones y tipos especiales"""
+        processed_data = {}
+        model_attrs = Modelo._adict_
+        
+        for field_name, value in data.items():
+            # Manejar campos con sufijo _id (referencias a relaciones)
+            if field_name.endswith('_id'):
+                relation_name = field_name[:-3]  # Quitar el '_id'
+                
+                # Verificar si existe la relación en el modelo
+                if relation_name in model_attrs:
+                    attr = model_attrs[relation_name]
+                    
+                    # Verificar si es realmente una relación
+                    if hasattr(attr, 'is_relation') and attr.is_relation and not attr.is_collection:
+                        # Obtener el modelo relacionado
+                        RelatedEntity = attr.py_type
+                        
+                        # Buscar la entidad relacionada
+                        related_obj = RelatedEntity.get(id=value)
+                        if related_obj is None:
+                            raise ValueError(f"No existe {RelatedEntity.__name__} con id={value}")
+                        
+                        # Asignar la relación completa, no solo el ID
+                        processed_data[relation_name] = related_obj
+                        continue
+                
+                # Si no es una relación reconocida, mantener el campo original
+                processed_data[field_name] = value
+                continue
+            
+            # Manejar campos de fecha - pero solo si realmente necesitas conversión
+            if field_name in model_attrs:
+                attr = model_attrs[field_name]
+                if hasattr(attr, 'py_type'):
+                    # Solo convertir si viene como string y el modelo espera date/datetime
+                    if attr.py_type in (date,) and isinstance(value, str):
+                        processed_data[field_name] = datetime.strptime(value, "%Y-%m-%d").date()
+                        continue
 
+                    elif attr.py_type in (datetime,) and isinstance(value, str):
+                        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                            try:
+                                processed_data[field_name] = datetime.strptime(value, fmt)
+                                break
+                            except ValueError:
+                                continue
+                        else:
+                            processed_data[field_name] = value
+                        continue
+            
+            # Para todos los demás campos, usar el valor tal como está
+            processed_data[field_name] = value
+        
+        return processed_data

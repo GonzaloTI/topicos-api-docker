@@ -1,0 +1,180 @@
+[
+  {
+    "url": "http://localhost:8000/carreras",
+    "method": "POST",
+    "body": {
+      "nombre": "Ingeniería Informática",
+      "codigo": "187-003",
+      "otros": "texto opcional"
+    }
+  },
+  {
+    "url": "http://localhost:8000/carreras",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/planes",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/planes",
+    "method": "POST",
+    "body": {
+      "nombre": "Plan 2025",
+      "codigo": "PLN-2025",
+      "fecha": "2025-09-11",
+      "estado": "ACTIVO",
+      "carrera_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/materias",
+    "method": "POST",
+    "body": {
+      "sigla": "INF-101",
+      "nombre": "Intro Prog",
+      "creditos": 5,
+      "plan_id": 1,
+      "nivel_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/materias",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/niveles",
+    "method": "POST",
+    "body": {
+      "nivel": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/niveles",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/docentes",
+    "method": "POST",
+    "body": {
+      "registro": "12345678",
+      "ci": "1234567",
+      "nombre": "Juan Pérez",
+      "telefono": "76543210",
+      "otros": ""
+    }
+  },
+  {
+    "url": "http://localhost:8000/docentes",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/estudiantes",
+    "method": "POST",
+    "body": {
+      "registro": "12345678",
+      "ci": "9876543",
+      "nombre": "Carlos Ramírez",
+      "telefono": "78965412",
+      "correo": "carlos@correo.com",
+      "otros": ""
+    }
+  },
+  {
+    "url": "http://localhost:8000/estudiantes",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/modulos",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/modulos",
+    "method": "POST",
+    "body": {
+      "numero": "220",
+      "nombre": "Edificio Principal"
+    }
+  },
+  {
+    "url": "http://localhost:8000/aulas",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/aulas",
+    "method": "POST",
+    "body": {
+      "numero": "101",
+      "nombre": "Laboratorio 1",
+      "modulo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/horarios",
+    "method": "POST",
+    "body": {
+      "dia": "Lunes",
+      "hora_inicio": "08:00:00",
+      "hora_fin": "10:00:00",
+      "grupo_id": 1,
+      "aula_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/horarios",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/gruposmateria",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/gruposmateria",
+    "method": "POST",
+    "body": {
+      "grupo": "A",
+      "nombre": "Grupo A",
+      "estado": "Activo",
+      "materia_id": 1,
+      "docente_id": 1,
+      "periodo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/inscripciones",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/inscripciones",
+    "method": "POST",
+    "body": {
+      "fecha": "2025-02-01",
+      "estudiante_id": 1,
+      "periodo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/inscripcionmateria",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/inscripcionmateria",
+    "method": "POST",
+    "body": {
+      "inscripcion_id": 1,
+      "grupo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/notas",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/notas",
+    "method": "POST",
+    "body": {
+      "nota": 80,
+      "inscripcion_materia_id": 1
+    }
+  }
+]

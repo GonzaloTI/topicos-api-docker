@@ -41,22 +41,22 @@ app = Flask(__name__)
 )'''
 dborm = DatabaseORM(
     user="postgres",
-    password="pgadmin",
+    password="pgadmin123",
     host="localhost",
     database="topicosflask"
 )
 
 SECRET_KEY = "mi_clave_secreta"
-'''
+
 REDIS_HOST = "18.191.219.182"     # ej: "54.210.xxx.xxx"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "contraseniasegura2025"
-'''
 
+'''
 REDIS_HOST = "localhost"     # ej: "54.210.xxx.xxx"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "contraseniasegura2025"
-
+'''
 
 cola = Cola2(
     redis_host=REDIS_HOST,
@@ -315,7 +315,7 @@ def login():
 # Rutas Carrera
 # =========================
 @app.route("/carreras", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_carrera():
     Carrera = dborm.db.Carrera
@@ -338,18 +338,18 @@ def agregar_carrera():
 
 
 @app.route("/carreras", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_carreras():
     #tarea.guardar_tarea(instruccion="GET", modelo="Carrera", datos='')
     
-    
     Carrera = dborm.db.Carrera
     carreras = Carrera.select()[:]
     data = [c.to_full_dict() for c in carreras]
+    return jsonify(data), 200
     
 @app.route("/carrerasasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_carreraasync():
     data = request.json
@@ -375,7 +375,7 @@ def agregar_carreraasync():
         return jsonify({"error": str(e)}), 400
     
 @app.route("/carrerasasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_carrera():
     data = request.json
@@ -401,7 +401,7 @@ def actualizar_carrera():
         rollback()
         return jsonify({"error": str(e)}), 400
 @app.route("/carrerasasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_carrerasasync():
     dto = CarreraDTO()  # Crear un DTO vacío para representar la búsqueda general de carreras
@@ -461,7 +461,7 @@ def resume_workers():
 # Rutas PlanDeEstudio
 # =========================
 @app.route("/planes", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_plan():
     PlanDeEstudio = dborm.db.PlanDeEstudio
@@ -483,7 +483,7 @@ def agregar_plan():
         return jsonify({"error": str(e)}), 400
     
 @app.route("/planesasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_planasync():
    
@@ -508,7 +508,7 @@ def agregar_planasync():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/planesasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def agregar_planupdateasync():
    
@@ -535,7 +535,7 @@ def agregar_planupdateasync():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/planesasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_planesasync():
     dto = PlanDeEstudioDTO()
@@ -548,7 +548,7 @@ def listar_planesasync():
 
 
 @app.route("/planes", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_planes():
     PlanDeEstudio = dborm.db.PlanDeEstudio
@@ -565,7 +565,7 @@ def listar_planes():
 # Rutas Materia (uno por uno)
 # =========================
 @app.route("/materias", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_materia():
     Materia = dborm.db.Materia
@@ -589,7 +589,7 @@ def agregar_materia():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/materias", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_materias():
     Materia = dborm.db.Materia
@@ -599,7 +599,7 @@ def listar_materias():
     return jsonify(data), 200
 
 @app.route("/materiasasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_materia_async():
     data = request.json
@@ -625,7 +625,7 @@ def agregar_materia_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/materiasasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_materia_async():
     data = request.json
@@ -654,7 +654,7 @@ def actualizar_materia_async():
         return jsonify({"error": str(e)}), 400
     
 @app.route("/materiasasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_materias_async():
     dto = MateriaDTO() 
@@ -681,7 +681,7 @@ def listar_materias_async():
 
 # =========================
 @app.route("/prerrequisitos", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_prerrequisito():
     Materia = dborm.db.Materia
@@ -689,8 +689,8 @@ def agregar_prerrequisito():
     data = request.json
     try:
         materia = Materia[data["materia_id"]]
-        prereq = Materia[data["prereq_id"]]
-        pr = Prerequisito(materia=materia, materia_requisito=prereq)
+        materia_requisito = Materia[data["materia_requisito_id"]]
+        pr = Prerequisito(materia=materia, materia_requisito=materia_requisito)
         commit()
         return jsonify({"msg": "Prerrequisito agregado", "id": pr.id}), 201
     except Exception as e:
@@ -698,7 +698,7 @@ def agregar_prerrequisito():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/prerrequisitos", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_prerrequisitos():
     Prerequisito = dborm.db.Prerequisito
@@ -707,9 +707,17 @@ def listar_prerrequisitos():
     prerequisitos = [n.to_full_dict() for n in Prerequisito.select()]
     
     return jsonify(prerequisitos), 200
-    
+
+@app.route("/prerrequisitosasync", methods=["GET"])
+#@token_required
+def listar_prerrequisitosasync():
+    dto = PrerequisitoDTO()
+   
+    tarea_id = cola.agregar(metodo=Metodo.GET,prioridad=Prioridad.ALTA,payload=json.dumps(dto.to_dict()))
+    return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+  
 @app.route("/prerrequisitosasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_prerrequisito_async():
     data = request.json
@@ -717,7 +725,7 @@ def agregar_prerrequisito_async():
         # Crear el DTO con los datos del prerrequisito
         dto = PrerequisitoDTO(
             materia_id=data["materia_id"],
-            materia_id_requisito=data["prereq_id"]
+            materia_requisito_id=data["materia_requisito_id"]
         )
 
         # Agregar la tarea a la cola para procesarla de manera asincrónica
@@ -741,7 +749,7 @@ def agregar_prerrequisito_async():
 
 # ---------- NIVELES ----------
 @app.route("/niveles", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_nivel():
     Nivel = dborm.db.Nivel
@@ -755,7 +763,7 @@ def agregar_nivel():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/niveles", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_niveles():
     Nivel = dborm.db.Nivel
@@ -765,7 +773,7 @@ def listar_niveles():
 
 
 @app.route("/nivelesasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_nivelasync():
     data = request.json
@@ -787,7 +795,7 @@ def agregar_nivelasync():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/nivelesasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_nivelesasync():
     dto = NivelDTO()  # Crear un DTO vacío para representar la búsqueda general de niveles
@@ -806,7 +814,7 @@ def listar_nivelesasync():
 # Rutas Docente
 # =========================
 @app.route("/docentes", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_docente():
     Docente = dborm.db.Docente
@@ -826,7 +834,7 @@ def agregar_docente():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/docentes", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_docentes():
     Docente = dborm.db.Docente
@@ -835,7 +843,7 @@ def listar_docentes():
     return jsonify(docentes), 200
 
 @app.route("/docentesasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_docente_async():
     data = request.json
@@ -861,7 +869,7 @@ def agregar_docente_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/docentesasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_docente_async():
     data = request.json
@@ -888,7 +896,7 @@ def actualizar_docente_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/docentesasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_docentes_async():
     dto = DocenteDTO()  # Crear un DTO vacío para representar la búsqueda general de docentes
@@ -905,7 +913,7 @@ def listar_docentes_async():
 
 # ---------- ESTUDIANTES ----------
 @app.route("/estudiantes", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_estudiante():
     Estudiante = dborm.db.Estudiante
@@ -926,7 +934,7 @@ def agregar_estudiante():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/estudiantes", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_estudiantes():
     Estudiante = dborm.db.Estudiante
@@ -934,7 +942,7 @@ def listar_estudiantes():
    
     return jsonify(estudiantes), 200
 @app.route("/estudiantesasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_estudiante_async():
     data = request.json
@@ -961,7 +969,7 @@ def agregar_estudiante_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/estudiantesasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_estudiante_async():
     data = request.json
@@ -988,7 +996,7 @@ def actualizar_estudiante_async():
         rollback()
         return jsonify({"error": str(e)}), 400
 @app.route("/estudiantesasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_estudiantes_async():
     dto = EstudianteDTO()  # Crear un DTO vacío para representar la búsqueda general de estudiantes
@@ -1008,7 +1016,7 @@ def listar_estudiantes_async():
 # =========================
 
 @app.route("/modulos", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_modulos():
     Modulo = dborm.db.Modulo
@@ -1018,7 +1026,7 @@ def listar_modulos():
 
 
 @app.route("/modulos", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_modulo():
     Modulo = dborm.db.Modulo
@@ -1040,7 +1048,7 @@ def agregar_modulo():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/modulosasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_modulo_async():
     data = request.json
@@ -1063,7 +1071,7 @@ def agregar_modulo_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/modulosasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_modulo_async():
     data = request.json
@@ -1087,7 +1095,7 @@ def actualizar_modulo_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/modulosasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_modulos_async():
     dto = ModuloDTO()  # Crear un DTO vacío para representar la búsqueda general de módulos
@@ -1107,7 +1115,7 @@ def listar_modulos_async():
 # =========================
 
 @app.route("/aulas", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_aulas():
     Aula = dborm.db.Aula
@@ -1144,7 +1152,7 @@ def agregar_aula():
     
     
 @app.route("/aulasasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_aula_async():
     data = request.json
@@ -1168,7 +1176,7 @@ def agregar_aula_async():
         return jsonify({"error": str(e)}), 400
     
 @app.route("/aulasasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_aula_async():
     data = request.json
@@ -1194,7 +1202,7 @@ def actualizar_aula_async():
     
     
 @app.route("/aulasasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_aulas_async():
     dto = AulaDTO()  # Crear un DTO vacío para representar la búsqueda general de aulas
@@ -1255,7 +1263,7 @@ def listar_horarios():
     return jsonify({"horarios": horarios}), 200
 
 @app.route("/horariosasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_horario_async():
     data = request.json
@@ -1282,7 +1290,7 @@ def agregar_horario_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/horariosasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_horario_async():
     data = request.json
@@ -1309,7 +1317,7 @@ def actualizar_horario_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/horariosasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_horarios_async():
     dto = HorarioDTO()  # Crear un DTO vacío para representar la búsqueda general de horarios
@@ -1473,7 +1481,7 @@ def listar_grupos_materia():
     return jsonify(grupos), 200
   
 @app.route("/gruposmateriaasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def grupomateriaasync():
     data = request.json
@@ -1500,7 +1508,7 @@ def grupomateriaasync():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/gruposmateriaasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_grupo_materia_async():
     data = request.json
@@ -1528,7 +1536,7 @@ def actualizar_grupo_materia_async():
         return jsonify({"error": str(e)}), 400
     
 @app.route("/gruposmateriaasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_grupos_materia_async():
     dto = GrupoMateriaDTO()
@@ -1590,7 +1598,7 @@ def listar_inscripciones():
 #----------inscripciones ----------
 
 @app.route("/inscripcionesasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_inscripcionasync():
     data = request.json
@@ -1613,7 +1621,7 @@ def agregar_inscripcionasync():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/inscripcionesasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_inscripcionasync():
     data = request.json
@@ -1637,7 +1645,7 @@ def actualizar_inscripcionasync():
         return jsonify({"error": str(e)}), 400
     
 @app.route("/inscripcionesasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_inscripcionesasync():
     dto = InscripcionDTO()  # Crear un DTO vacío para representar la búsqueda general de inscripciones
@@ -1696,7 +1704,7 @@ def listar_inscripcion_materia():
 
 
 @app.route("/inscripcionmateriaasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_inscripcion_materiaasync():
     data = request.json
@@ -1719,7 +1727,7 @@ def agregar_inscripcion_materiaasync():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/inscripcionmateriaasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_inscripcion_materiaasync():
     data = request.json
@@ -1743,7 +1751,7 @@ def actualizar_inscripcion_materiaasync():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/inscripcionmateriaasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_inscripcion_materiaasync():
     dto = InscripcionMateriaDTO()  # DTO vacío para listar todas las inscripciones
@@ -1794,7 +1802,7 @@ def agregar_nota():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/notasasync", methods=["POST"])
-@token_required
+#@token_required
 @db_session
 def agregar_nota_async():
     data = request.json
@@ -1817,7 +1825,7 @@ def agregar_nota_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/notasasync", methods=["PUT"])
-@token_required
+#@token_required
 @db_session
 def actualizar_nota_async():
     data = request.json
@@ -1841,7 +1849,7 @@ def actualizar_nota_async():
         return jsonify({"error": str(e)}), 400
 
 @app.route("/notasasync", methods=["GET"])
-@token_required
+#@token_required
 @db_session
 def listar_notas_async():
     dto = NotaDTO()  # DTO vacío para listar todas las notas
