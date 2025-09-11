@@ -336,23 +336,6 @@ def agregar_carrera():
         return jsonify({"error": str(e)}), 400
 
 
-@app.route("/carreras", methods=["POST"])
-@token_required
-@db_session
-def agregar_carrera():
-    Carrera = dborm.db.Carrera
-    data = request.json
-    
-    try:
-        carrera = Carrera(data)
-        commit()
-        return jsonify({"msg": "Carrera agregada con éxito", "id": carrera.id}), 201
- 
-    
-    except Exception as e:
-        rollback()
-        return jsonify({"error": str(e)}), 400
-
 
 @app.route("/carreras", methods=["GET"])
 @token_required
