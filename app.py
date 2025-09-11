@@ -33,16 +33,27 @@ app = Flask(__name__)
 # =========================
 # Configuración de la BD
 # =========================
-dborm = DatabaseORM(
+'''dborm = DatabaseORM(
     user="topicos_ytxp_user",
     password="FR0EU36yrtu6u7HngTa1PxBhIHKnFx16",
     host="dpg-d2n0rgh5pdvs739dmlug-a.oregon-postgres.render.com",
     database="topicos_ytxp"
+)'''
+dborm = DatabaseORM(
+    user="postgres",
+    password="pgadmin",
+    host="localhost",
+    database="topicosflask"
 )
 
 SECRET_KEY = "mi_clave_secreta"
-
+'''
 REDIS_HOST = "18.191.219.182"     # ej: "54.210.xxx.xxx"
+REDIS_PORT = 6379
+REDIS_PASSWORD = "contraseniasegura2025"
+'''
+
+REDIS_HOST = "localhost"     # ej: "54.210.xxx.xxx"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "contraseniasegura2025"
 
@@ -311,26 +322,37 @@ def agregar_carrera():
     data = request.json
     
     try:
-        datos_serializados = {
-            "nombre": data["nombre"],
-            "codigo": data["codigo"],
-            "otros": data.get("otros", "")
-        }
-
-        
-    
-        #carrera = Carrera(
-         #   nombre=data["nombre"],
-          #  codigo=data["codigo"],
-           # otros=data.get("otros", "")
-        #)
-        #commit()
-        #return jsonify({"msg": "Carrera agregada con éxito", "id": carrera.id}), 201
-        return jsonify({"msg": "Carrera agregada con éxito"}), 201
+        carrera = Carrera(
+            nombre=data["nombre"],
+            codigo=data["codigo"],
+            otros=data.get("otros", "")
+        )
+        commit()
+        return jsonify({"msg": "Carrera agregada con éxito", "id": carrera.id}), 201
+ 
     
     except Exception as e:
         rollback()
         return jsonify({"error": str(e)}), 400
+
+
+@app.route("/carreras", methods=["POST"])
+@token_required
+@db_session
+def agregar_carrera():
+    Carrera = dborm.db.Carrera
+    data = request.json
+    
+    try:
+        carrera = Carrera(data)
+        commit()
+        return jsonify({"msg": "Carrera agregada con éxito", "id": carrera.id}), 201
+ 
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
 
 @app.route("/carreras", methods=["GET"])
 @token_required
@@ -551,7 +573,7 @@ def listar_planes():
     data = [p.to_full_dict() for p in planes]
     cola.agregar( metodo=Metodo.GET, prioridad=Prioridad.ALTA, payload=data)
     tarea = cola.obtener()
-    print("Tarea obtenida de la cola:", tarea)
+    #print("Tarea obtenida de la cola:", tarea)
     return jsonify(data), 200
 
 
@@ -697,8 +719,8 @@ def agregar_prerrequisito():
 @db_session
 def listar_prerrequisitos():
     Prerequisito = dborm.db.Prerequisito
-    print(Prerequisito)
-    print(Prerequisito.select())
+    #print(Prerequisito)
+    #print(Prerequisito.select())
     prerequisitos = [n.to_full_dict() for n in Prerequisito.select()]
     
     return jsonify(prerequisitos), 200
