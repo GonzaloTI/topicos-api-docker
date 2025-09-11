@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Cola Redis — Pendientes y Realizadas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    h1 { margin: 0 0 8px; }
+    .sub { color:#666; margin-bottom:16px; }
+    .bar { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+    button { padding:6px 10px; border:1px solid #ddd; border-radius:8px; background:#fafafa; cursor:pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+    th { background: #fafafa; position: sticky; top: 0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+    .wrap { max-height: 200px; overflow: auto; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#eef; font-size:12px; }
+    .estado-realizado  { color:#333; }
+    .estado-error { color:#c00; font-weight:600; }
+    .estado-procesando { color:#0a7; font-weight:600; }
+    .estado-pendiente, .estado-espera { color:#06c; }
+    .section { background:#f6faff; font-weight:600; }
+    details summary { cursor:pointer; user-select:none; }
+    pre { margin: 8px 0 0; }
+  </style>
+</head>
+<body>
+  <h1>Cola Redis</h1>
+  <div class="sub">Cola: <strong>{{ cola_nombre or '-' }}</strong></div>
+
+  <div class="bar">
+    <button id="btnRefresh" type="button">Actualizar</button>
+    <span id="ts" class="sub">—</span>
+    <span id="counts" class="sub"></span>
+    <span id="msg" class="sub" style="color:#c00"></span>
+  </div>
+
+  <div style="overflow:auto; max-height: 70vh; border:1px solid #eee; border-radius:12px;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Estado</th>
+          <th>Prioridad</th>
+          <th>ID</th>
+          <th>Método</th>
+          <th>Payload</th>
+          <th>Resultado</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function clsEstado(est) {
+    if (!est) return "";
+    const e = (est + "").toLowerCase();
+    if (e.includes("error")) return "estado-error";
+    if (e.includes("proces")) return "estado-procesando";
+    if (e.includes("realiz")) return "estado-realizado";
+    if (e.includes("espera")) return "estado-espera";
+    if (e.includes("pend")) return "estado-pendiente";
+    return "";
+  }
+
+  function esc(s) {
+    return (s + "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function rowFromTask(t, idxBase, i) {
+    const tr = document.createElement("tr");
+
+    const tdIdx = document.createElement("td");
+    tdIdx.textContent = idxBase + i + 1;
+
+    const tdEstado = document.createElement("td");
+    const est = t.estado ?? "-";
+    tdEstado.textContent = est;
+    tdEstado.className = clsEstado(est);
+
+    const tdPrio = document.createElement("td");
+    const span = document.createElement("span");
+    span.className = "pill";
+    span.textContent = (t.prioridad ?? "-");
+    tdPrio.appendChild(span);
+
+    const tdId = document.createElement("td");
+    tdId.className = "mono";
+    tdId.textContent = t.id ?? "-";
+
+    const tdMetodo = document.createElement("td");
+    tdMetodo.textContent = t.metodo ?? "-";
+
+    const tdPayload = document.createElement("td");
+    tdPayload.className = "mono wrap";
+    const payloadStr = (typeof t.payload === "string") ? t.payload : JSON.stringify(t.payload, null, 2);
+    tdPayload.textContent = payloadStr ?? "-";
+
+    const tdResultado = document.createElement("td");
+    tdResultado.className = "wrap";
+    if (t.resultado === undefined || t.resultado === null) {
+      tdResultado.textContent = "-";
+    } else {
+      const resStr = (typeof t.resultado === "string") ? t.resultado : JSON.stringify(t.resultado, null, 2);
+      tdResultado.innerHTML = `<details><summary>ver</summary><pre class="mono">${esc(resStr)}</pre></details>`;
+    }
+
+    tr.appendChild(tdIdx);
+    tr.appendChild(tdEstado);
+    tr.appendChild(tdPrio);
+    tr.appendChild(tdId);
+    tr.appendChild(tdMetodo);
+    tr.appendChild(tdPayload);
+    tr.appendChild(tdResultado);
+    return tr;
+  }
+
+  function sectionRow(title) {
+    const tr = document.createElement("tr");
+    tr.className = "section";
+    const td = document.createElement("td");
+    td.colSpan = 7;
+    td.textContent = title;
+    tr.appendChild(td);
+    return tr;
+  }
+
+  async function load() {
+    $("msg").textContent = "";
+    try {
+      const r = await fetch("/cola/resumen", { cache: "no-store" });
+      $("ts").textContent = "Actualizado: " + new Date().toLocaleTimeString();
+
+      const tbody = $("tbody");
+      tbody.innerHTML = "";
+
+      if (!r.ok) {
+        $("msg").textContent = "Error HTTP " + r.status;
+        return;
+      }
+
+      const data = await r.json();
+      const pendientes = data.pendientes || [];
+      const realizadas = data.realizadas || [];
+
+      $("counts").textContent = `Pendientes: ${pendientes.length} — Realizadas: ${realizadas.length}`;
+
+      // Pendientes primero
+      tbody.appendChild(sectionRow("Pendientes"));
+      pendientes.forEach((t, i) => {
+        // Normalizamos estado visual: muchos la devuelven como "espera"
+        if (!t.estado) t.estado = "pendiente";
+        tbody.appendChild(rowFromTask(t, 0, i));
+      });
+
+      // Luego realizadas
+      const offset = pendientes.length;
+      tbody.appendChild(sectionRow("Realizadas"));
+      realizadas.forEach((t, i) => {
+        // t ya viene de to_dict() con estado, prioridad, etc.
+        tbody.appendChild(rowFromTask(t, offset, i));
+      });
+
+    } catch (err) {
+      $("msg").textContent = "Error de red: " + err;
+    }
+  }
+
+  $("btnRefresh").addEventListener("click", load);
+ 
+  load();
+</script>
+</body>
+</html>

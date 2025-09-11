@@ -1,10 +1,9 @@
 import json
-from flask import Flask, request, jsonify
+from flask import Flask, Response, render_template, request, jsonify
 from pony.orm import Database, Required, Optional, PrimaryKey, db_session, Set , commit, rollback
 from pony.orm.core import TransactionIntegrityError, ObjectNotFound
 import datetime
 from functools import wraps
-import threading
 import jwt
 from DTO.CarreraDTO import CarreraDTO
 from DTO.MateriaDTO import MateriaDTO
@@ -21,7 +20,7 @@ from DTO.EstudianteDTO import EstudianteDTO
 from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
 from DTO.AulasDTO import AulaDTO
 
-from cola import Cola
+from cola2 import Cola2
 from ponyorm import DatabaseORM
 import uuid
 
@@ -48,11 +47,11 @@ REDIS_PORT = 6379
 REDIS_PASSWORD = "contraseniasegura2025"
 
 
-cola = Cola(
+cola = Cola2(
     redis_host=REDIS_HOST,
     redis_port=REDIS_PORT,
     redis_password=REDIS_PASSWORD,  # tu password
-    redis_db=8,
+    redis_db=1,
     nombre="cola"
 )
 
@@ -96,8 +95,33 @@ def obtener_respuestaall():
         return jsonify({"resultado": tareas_serializadas}), 200
     else:
         # Si no hay resultado disponible aún
-        return jsonify({"error": "Respuesta aún no disponible"}), 404
-  
+        return jsonify({"error": "Cola Vacia"}), 404
+@app.route("/limpiarbd", methods=["GET"])
+def vaciarbd():
+    resultado = cola.vaciar_bd()
+    #print(resultado)
+    return jsonify({"pass": "vaciandobd"}), 201
+
+# --- en tu app Flask ---
+@app.get("/cola/resumen")
+def cola_resumen():
+    # Pendientes del ZSET (no se consumen)
+    pendientes = cola.pendientes(limit=200, mayor_a_menor=True)
+
+    # Realizadas/estado desde el hash :status
+    realizadas_objs = cola.obtener_todas_las_tareas()  # devuelve lista de Tarea
+    realizadas = [t.to_dict() for t in realizadas_objs]
+
+    return jsonify({
+        "cola": cola.nombre,
+        "total_pendientes": len(pendientes),
+        "total_realizadas": len(realizadas),
+        "pendientes": pendientes,
+        "realizadas": realizadas
+    }), 200
+@app.route("/ui/cola", methods=["GET"])
+def ui_cola():
+    return render_template("cola_resumen.html", cola_nombre=cola.nombre)
 
 @app.route("/status/<id_tarea>", methods=["GET"])
 def obtener_respuesta(id_tarea):
@@ -398,6 +422,14 @@ def stop_workers():
     """Detiene todos los workers"""
     try:
         worker_manager.stop_all()
+        return jsonify({"message": "Workers detenido "}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route("/restart", methods=["POST"])
+def restart_workers():
+    """Detiene todos los workers"""
+    try:
+        worker_manager.start()
         return jsonify({"message": "Workers detenido "}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1884,4 +1916,4 @@ def obtener_materias_estudiante():
 if __name__ == "__main__":
         
 
-    app.run(host="0.0.0.0", port=8000,use_reloader=True)
+    app.run(host="0.0.0.0", port=8000,use_reloader=False)

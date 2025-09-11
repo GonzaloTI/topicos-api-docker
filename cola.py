@@ -44,7 +44,7 @@ class Cola:
         self.redis.zrem(self.nombre, json.dumps(tarea.to_dict()))
         return tarea
    
-    def obtener_bloqueante(self, timeout: int = 0) -> Optional[Tarea]:
+    def obtener_bloqueante(self, timeout: int = 1) -> Optional[Tarea]:
         """
         Saca la tarea de MAYOR prioridad de forma BLOQUEANTE desde Redis.
         BZPOPMAX YA elimina el elemento del ZSET en Redis.
@@ -99,3 +99,29 @@ class Cola:
         tareas = [Tarea.from_dict(json.loads(tarea_data)) for tarea_data in todas_las_tareas_data.values()]
         
         return tareas
+    
+    def vaciar_bd(self, asincrono: bool = True) -> None:
+        """
+        Vacía COMPLETAMENTE la base de datos seleccionada en este cliente Redis.
+        (Equivalente a FLUSHDB en la DB = self.redis.connection_pool.connection_kwargs['db'])
+
+        Parámetros:
+        asincrono: si True, usa FLUSHDB ASYNC (no bloquea Redis).
+        """
+        # Vacía la BD en Redis
+        try:
+            if asincrono:
+                # redis-py >= 3.0 soporta 'asynchronous'
+                self.redis.flushdb(asynchronous=True)
+            else:
+                self.redis.flushdb()
+        except TypeError:
+            # Por si tu versión de redis-py no soporta 'asynchronous'
+            self.redis.flushdb()
+
+      
+        try:
+            while not self.cola.empty():
+                self.cola.get_nowait()
+        except Exception:
+            pass
