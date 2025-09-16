@@ -2,6 +2,7 @@
 from datetime import datetime, date
 import json
 import base64
+from venv import logger
 import cloudpickle
 import threading
 from typing import Optional, Dict, Any, Callable
@@ -9,46 +10,51 @@ from typing import Optional, Dict, Any, Callable
 from pony.orm import db_session, commit
 from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
 from tarea import Tarea, Metodo, Estado
-from cola import Cola
+from cola2 import Cola2
 
 
 class WorkerManager:
-    def __init__(self, cola: Cola, dborm, num_workers: int = 1, bzpop_timeout: int = 1):
+    def __init__(self, cola2: Cola2, dborm, num_workers: int = 1, bzpop_timeout: int = 1):
         self.workers = [
-            TaskWorker(cola=cola, dborm=dborm, name=f"Worker-{i+1}", bzpop_timeout=bzpop_timeout)
+            TaskWorker(cola2=cola2, dborm=dborm, name=f"Worker-{i+1}", bzpop_timeout=bzpop_timeout)
             for i in range(num_workers)
         ]
+        logger.info(f"Creados {num_workers} workers con timeout {bzpop_timeout}s")
 
     def start(self):
         for w in self.workers:
             w.start()
+        logger.info(f"Iniciados {len(self.workers)} workers")
 
     def pause_all(self):
         for w in self.workers:
             w.pause()
+        logger.info("Todos los workers pausados")
 
     def resume_all(self):
         for w in self.workers:
             w.resume()
+        logger.info("Todos los workers reanudados")
 
     def stop_all(self):
         for w in self.workers:
             w.stop()
         for w in self.workers:
             w.join(timeout=2.0)
+        logger.info("Workers detenidos")
 
 # ------Worker -----------------------------------
 
 class TaskWorker(threading.Thread):
     def __init__(
         self,
-        cola: Cola,
+        cola2: Cola2,
         dborm,                      
         name: Optional[str] = None,
         bzpop_timeout: int = 1   
     ):
         super().__init__(daemon=True, name=name or "TaskWorker")
-        self.cola = cola
+        self.cola = cola2
         self.dborm = dborm
         self.bzpop_timeout = bzpop_timeout
 
@@ -68,13 +74,16 @@ class TaskWorker(threading.Thread):
     # -------- control del Worker --------
     def pause(self):
         self._run_event.clear()
+        logger.info(f"{self.name} pausando")
 
     def resume(self):
         self._run_event.set()
+        logger.info(f"{self.name} reanudado...")
 
     def stop(self):
         self._stop_event.set()
         self._run_event.set()
+        logger.info(f"{self.name} deteniendo...")
         
         
 

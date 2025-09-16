@@ -147,55 +147,35 @@
         return;
       }
 
-      // Leer como texto y validar
-      const ct  = (r.headers.get("content-type") || "").toLowerCase();
-      const raw = await r.text();
-
-      if (!ct.includes("application/json")) {
-        $("msg").textContent = "Respuesta no-JSON (Content-Type: " + ct + ").";
-        console.warn("Cuerpo recibido (inicio):", raw.slice(0, 400));
-        return;
-      }
-
-      const clean = (raw || "").trim().replace(/^\uFEFF/, "");
-      if (!clean) {
-        $("msg").textContent = "JSON vacío.";
-        return;
-      }
-
-      let data;
-      try {
-        data = JSON.parse(clean);
-      } catch (e) {
-        $("msg").textContent = "JSON inválido: " + e.message;
-        console.error("Cuerpo recibido (muestra):", clean.slice(0, 400));
-        return;
-      }
-
-      const pendientes = Array.isArray(data.pendientes) ? data.pendientes : [];
-      const realizadas = Array.isArray(data.realizadas) ? data.realizadas : [];
+      const data = await r.json();
+      const pendientes = data.pendientes || [];
+      const realizadas = data.realizadas || [];
 
       $("counts").textContent = `Pendientes: ${pendientes.length} — Realizadas: ${realizadas.length}`;
 
+      // Pendientes primero
       tbody.appendChild(sectionRow("Pendientes"));
       pendientes.forEach((t, i) => {
+        // Normalizamos estado visual: muchos la devuelven como "espera"
         if (!t.estado) t.estado = "pendiente";
         tbody.appendChild(rowFromTask(t, 0, i));
       });
 
+      // Luego realizadas
       const offset = pendientes.length;
       tbody.appendChild(sectionRow("Realizadas"));
       realizadas.forEach((t, i) => {
+        // t ya viene de to_dict() con estado, prioridad, etc.
         tbody.appendChild(rowFromTask(t, offset, i));
       });
 
     } catch (err) {
       $("msg").textContent = "Error de red: " + err;
-      console.error(err);
     }
   }
 
   $("btnRefresh").addEventListener("click", load);
+ 
   load();
 </script>
 </body>

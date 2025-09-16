@@ -109,7 +109,7 @@ class Cola2:
         if not todas:
             return []
         return [Tarea.from_dict(json.loads(v)) for v in todas.values()]
-    def pendientes(self, limit: int = 200, mayor_a_menor: bool = True) -> List[Dict]:
+    def pendientes(self, limit: int = 0, mayor_a_menor: bool = True) -> List[Dict]:
             """
             Lee el ZSET de pendientes SIN sacarlas de la cola.
             Devuelve lista de dicts: {..., estado: 'pendiente', prioridad: <score>}
