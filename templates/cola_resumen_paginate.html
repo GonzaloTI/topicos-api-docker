@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Cola Redis — Pendientes y Realizadas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{ --line:#e9eef3; --muted:#6b7280; --bg:#f7fbff; }
+    *{box-sizing:border-box}
+    body { font-family: system-ui, sans-serif; margin: 24px; color:#111827; }
+    h1 { margin: 0 0 6px; font-weight:700; }
+    .sub { color: var(--muted); margin-bottom:16px; }
+    .bar { display:flex; gap:12px; align-items:center; margin:10px 0 14px; flex-wrap:wrap; }
+    button, select { padding:6px 10px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; }
+    button[disabled]{opacity:.5; cursor:not-allowed}
+    .card { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+    .card-head { background: var(--bg); padding:10px 12px; border-bottom:1px solid var(--line); font-weight:600;}
+    .table-wrap { overflow:auto; max-height: 65vh; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: top; }
+    th { background: #fafafa; position: sticky; top: 0; z-index:1; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+    .wrap { max-height: 200px; overflow: auto; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#eef; font-size:12px; }
+    .estado-realizado  { color:#111; }
+    .estado-error { color:#b91c1c; font-weight:600; }
+    .estado-procesando { color:#0ea5e9; font-weight:600; }
+    .estado-pendiente, .estado-espera { color:#2563eb; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media (min-width: 1100px){ .grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>Cola Redis</h1>
+  <div class="sub">Cola: <strong>{{ cola_nombre or '-' }}</strong></div>
+
+  <div class="bar">
+    <button id="btnRefresh" type="button">Actualizar</button>
+    <button id="btnPing" type="button" title="Prueba rápida del endpoint">Probar /resumen2</button>
+    <span id="ts" class="sub">—</span>
+    <span id="counts" class="sub"></span>
+    <span id="msg" class="sub" style="color:#b91c1c"></span>
+  </div>
+
+  <div class="grid">
+    <!-- PENDIENTES -->
+    <div class="card">
+      <div class="card-head">Pendientes</div>
+      <div class="bar" id="barPend">
+        <button id="pendFirst">« Primero</button>
+        <button id="pendPrev">‹ Anterior</button>
+        <span id="pendInfo" class="sub"></span>
+        <button id="pendNext">Siguiente ›</button>
+        <button id="pendLast">Último »</button>
+        <label style="margin-left:auto">Por página
+          <select id="pendSizeSel">
+            <option>100</option><option selected>500</option><option>1000</option>
+          </select>
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Estado</th>
+              <th>Prioridad</th>
+              <th>ID</th>
+              <th>Método</th>
+              <th>Payload</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPend"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REALIZADAS -->
+    <div class="card">
+      <div class="card-head">Realizadas</div>
+      <div class="bar" id="barReal">
+        <button id="realPrev">‹ Anterior</button>
+        <span id="realInfo" class="sub"></span>
+        <button id="realNext">Siguiente ›</button>
+        <label style="margin-left:auto">Chunk
+          <select id="realCountSel">
+            <option>100</option><option selected>500</option><option>1000</option>
+          </select>
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Estado</th>
+              <th>Prioridad</th>
+              <th>ID</th>
+              <th>Método</th>
+              <th>Payload</th>
+              <th>Resultado</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyReal"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script defer>
+    // URL del endpoint calculada por Flask (respeta blueprints/prefijos)
+    const baseResumen2 = "{{ url_for('cola_resumen2') }}";
+
+    const $ = (id) => document.getElementById(id);
+
+    // --- Estado de paginación ---
+    let pendPage = 1;
+    let pendSize = 500;
+    let pendTotalPages = 1;
+
+    let realCount = 500;
+    let realCursor = 0;             // cursor actual (HSCAN)
+    const realCursorStack = [0];    // historial para "Anterior"
+    let lastNextCursor = 0;
+
+    // --- Helpers ---
+    function clsEstado(est) {
+      if (!est) return "";
+      const e = (est + "").toLowerCase();
+      if (e.includes("error")) return "estado-error";
+      if (e.includes("proces")) return "estado-procesando";
+      if (e.includes("realiz")) return "estado-realizado";
+      if (e.includes("espera")) return "estado-espera";
+      if (e.includes("pend")) return "estado-pendiente";
+      return "";
+    }
+    function esc(s) {
+      return (s + "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function rowPend(t, idxBase, i) {
+      const tr = document.createElement("tr");
+
+      const tdIdx = document.createElement("td");
+      tdIdx.textContent = idxBase + i + 1;
+
+      const tdEstado = document.createElement("td");
+      const est = t.estado ?? "pendiente";
+      tdEstado.textContent = est;
+      tdEstado.className = clsEstado(est);
+
+      const tdPrio = document.createElement("td");
+      const span = document.createElement("span");
+      span.className = "pill";
+      span.textContent = (t.prioridad ?? "-");
+      tdPrio.appendChild(span);
+
+      const tdId = document.createElement("td");
+      tdId.className = "mono";
+      tdId.textContent = t.id ?? "-";
+
+      const tdMetodo = document.createElement("td");
+      tdMetodo.textContent = t.metodo ?? "-";
+
+      const tdPayload = document.createElement("td");
+      tdPayload.className = "mono wrap";
+      const payloadStr = (typeof t.payload === "string") ? t.payload : JSON.stringify(t.payload, null, 2);
+      tdPayload.textContent = payloadStr ?? "-";
+
+      tr.append(tdIdx, tdEstado, tdPrio, tdId, tdMetodo, tdPayload);
+      return tr;
+    }
+
+    function rowReal(t, idxBase, i) {
+      const tr = document.createElement("tr");
+
+      const tdIdx = document.createElement("td");
+      tdIdx.textContent = idxBase + i + 1;
+
+      const tdEstado = document.createElement("td");
+      const est = t.estado ?? "-";
+      tdEstado.textContent = est;
+      tdEstado.className = clsEstado(est);
+
+      const tdPrio = document.createElement("td");
+      const span = document.createElement("span");
+      span.className = "pill";
+      span.textContent = (t.prioridad ?? "-");
+      tdPrio.appendChild(span);
+
+      const tdId = document.createElement("td");
+      tdId.className = "mono";
+      tdId.textContent = t.id ?? "-";
+
+      const tdMetodo = document.createElement("td");
+      tdMetodo.textContent = t.metodo ?? "-";
+
+      const tdPayload = document.createElement("td");
+      tdPayload.className = "mono wrap";
+      const payloadStr = (typeof t.payload === "string") ? t.payload : JSON.stringify(t.payload, null, 2);
+      tdPayload.textContent = payloadStr ?? "-";
+
+      const tdResultado = document.createElement("td");
+      tdResultado.className = "wrap";
+      if (t.resultado === undefined || t.resultado === null) {
+        tdResultado.textContent = "-";
+      } else {
+        const resStr = (typeof t.resultado === "string") ? t.resultado : JSON.stringify(t.resultado, null, 2);
+        tdResultado.innerHTML = `<details><summary>ver</summary><pre class="mono">${esc(resStr)}</pre></details>`;
+      }
+
+      tr.append(tdIdx, tdEstado, tdPrio, tdId, tdMetodo, tdPayload, tdResultado);
+      return tr;
+    }
+
+    function updatePendButtons() {
+      const first = $("pendFirst"), prev = $("pendPrev"), next = $("pendNext"), last = $("pendLast"), info = $("pendInfo");
+      if (!first || !prev || !next || !last || !info) return;
+
+      first.disabled = (pendPage <= 1);
+      prev.disabled  = (pendPage <= 1);
+      next.disabled  = (pendPage >= pendTotalPages);
+      last.disabled  = (pendPage >= pendTotalPages);
+
+      info.textContent = `Página ${pendPage} de ${Math.max(pendTotalPages,1)} (tam ${pendSize})`;
+    }
+
+    function updateRealButtons(chunkLen, totalRealizadas, hasNext) {
+      const prev = $("realPrev"), next = $("realNext"), info = $("realInfo");
+      if (!prev || !next || !info) return;
+
+      prev.disabled = (realCursorStack.length <= 1);
+      next.disabled = !hasNext;
+
+      info.textContent = `Mostrando ${chunkLen} / ${totalRealizadas} (chunk ${realCount})`;
+    }
+
+    async function load() {
+      $("msg").textContent = "";
+      try {
+        const url = `${baseResumen2}?pend_page=${pendPage}&pend_size=${pendSize}&real_cursor=${realCursor}&real_count=${realCount}`;
+        console.log("fetch ->", url);
+        const r = await fetch(url, { cache: "no-store" });
+
+        $("ts").textContent = "Actualizado: " + new Date().toLocaleTimeString();
+        console.log("status:", r.status);
+
+        if (!r.ok) {
+          $("msg").textContent = "Error HTTP " + r.status;
+          return;
+        }
+
+        const ct  = (r.headers.get("content-type") || "").toLowerCase();
+        const raw = await r.text();
+
+        if (!ct.includes("application/json")) {
+          $("msg").textContent = "Respuesta no-JSON (Content-Type: " + ct + ").";
+          console.warn("Cuerpo recibido (inicio):", raw.slice(0, 400));
+          return;
+        }
+
+        const clean = (raw || "").trim().replace(/^\uFEFF/, "");
+        if (!clean) {
+          $("msg").textContent = "JSON vacío.";
+          return;
+        }
+
+        let data;
+        try {
+          data = JSON.parse(clean);
+        } catch (e) {
+          $("msg").textContent = "JSON inválido: " + e.message;
+          console.error("Cuerpo recibido (muestra):", clean.slice(0, 400));
+          return;
+        }
+
+        const pendientes = Array.isArray(data.pendientes) ? data.pendientes : [];
+        const realizadas = Array.isArray(data.realizadas) ? data.realizadas : [];
+
+        const totalPendientes = data.total_pendientes ?? pendientes.length;
+        const totalRealizadas = data.total_realizadas ?? realizadas.length;
+
+        pendTotalPages = data.pend_total_pages ?? Math.max(1, Math.ceil(totalPendientes / Math.max(1, pendSize)));
+
+        $("counts").textContent = `Pendientes: ${totalPendientes} — Realizadas: ${totalRealizadas}`;
+
+        // Render pendientes
+        const tbodyPend = $("tbodyPend");
+        tbodyPend.innerHTML = "";
+        pendientes.forEach((t, i) => tbodyPend.appendChild(rowPend(t, (pendPage-1)*pendSize, i)));
+        updatePendButtons();
+
+        // Render realizadas
+        const tbodyReal = $("tbodyReal");
+        tbodyReal.innerHTML = "";
+        realizadas.forEach((t, i) => tbodyReal.appendChild(rowReal(t, 0, i)));
+
+        // Cursors
+        lastNextCursor = data.real_cursor_next ?? 0;
+        const hasNext = (lastNextCursor !== 0);
+        updateRealButtons(realizadas.length, totalRealizadas, hasNext);
+
+      } catch (err) {
+        $("msg").textContent = "Error de red: " + err;
+        console.error(err);
+      }
+    }
+
+    function bindPagination() {
+      const btnRefresh = $("btnRefresh");
+      if (btnRefresh) btnRefresh.addEventListener("click", load);
+
+      const btnPing = $("btnPing");
+      if (btnPing) btnPing.addEventListener("click", async () => {
+        try {
+          const r = await fetch(baseResumen2);
+          console.log("PING status:", r.status);
+          const t = await r.text();
+          console.log("PING body:", t.slice(0, 300));
+        } catch(e) {
+          console.error("PING error:", e);
+        }
+      });
+
+      // Pendientes
+      const pendFirst = $("pendFirst");
+      const pendPrev  = $("pendPrev");
+      const pendNext  = $("pendNext");
+      const pendLast  = $("pendLast");
+      const pendSizeSel = $("pendSizeSel");
+
+      if (pendFirst) pendFirst.addEventListener("click", () => { pendPage = 1; load(); });
+      if (pendPrev)  pendPrev.addEventListener("click",  () => { if (pendPage > 1) { pendPage--; load(); } });
+      if (pendNext)  pendNext.addEventListener("click",  () => { if (pendPage < pendTotalPages) { pendPage++; load(); } });
+      if (pendLast)  pendLast.addEventListener("click",  () => { pendPage = pendTotalPages; load(); });
+
+      if (pendSizeSel) pendSizeSel.addEventListener("change", () => {
+        pendSize = parseInt(pendSizeSel.value, 10) || 500;
+        pendPage = 1;
+        load();
+      });
+
+      // Realizadas (cursor)
+      const realPrev = $("realPrev");
+      const realNext = $("realNext");
+      const realCountSel = $("realCountSel");
+
+      if (realPrev) realPrev.addEventListener("click", () => {
+        if (realCursorStack.length > 1) {
+          realCursorStack.pop();
+          realCursor = realCursorStack[realCursorStack.length - 1];
+          load();
+        }
+      });
+
+      if (realNext) realNext.addEventListener("click", () => {
+        if (lastNextCursor !== 0) {
+          realCursorStack.push(lastNextCursor);
+          realCursor = lastNextCursor;
+          load();
+        }
+      });
+
+      if (realCountSel) realCountSel.addEventListener("change", () => {
+        realCount = parseInt(realCountSel.value, 10) || 500;
+        realCursor = 0;
+        realCursorStack.length = 0;
+        realCursorStack.push(0);
+        load();
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("UI listo, endpoint:", baseResumen2);
+      bindPagination();
+      load();
+    });
+  </script>
+</body>
+</html>

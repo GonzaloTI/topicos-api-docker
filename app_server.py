@@ -9,17 +9,17 @@ if __name__ == '__main__':
     print("🚀 Iniciando servidor Flask con Waitress...")
     print("📍 Servidor corriendo en: http://localhost:8000")
     print("⚡ Configurado para alta concurrencia")
-    print("🔄 Threads: 64 | Conexiones: 500+ simultáneas")
-    print("-" * 24)
+    print("🔄 Threads: 20 | Conexiones: 500+ simultáneas")
+    print("-" * 12)
     
     # Configuración para alta concurrencia en Windows
     serve(
         app,
         host='0.0.0.0',
         port=8000,
-        threads=24,           # Número de threads
+        threads=20,           # Número de threads
         backlog=4048,         # Cola de conexiones pendientes  
-        connection_limit=100000, # Límite de conexiones
+        connection_limit=10000, # Límite de conexiones
         cleanup_interval=20,   # Cleanup cada 30 segundos
         channel_timeout=120,   # Timeout de canal
         log_untrusted_proxy_headers=False,

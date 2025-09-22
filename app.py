@@ -21,6 +21,7 @@ from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
 from DTO.AulasDTO import AulaDTO
 
 from cola2 import Cola2
+from cola_manager import ColaManager, RedisParams
 from ponyorm import DatabaseORM
 import uuid
 
@@ -41,7 +42,7 @@ app = Flask(__name__)
 )'''
 dborm = DatabaseORM(
     user="postgres",
-    password="pgadmin",
+    password="pgadmin123",
     host="localhost",
     database="topicosflask"
 )
@@ -66,7 +67,20 @@ cola = Cola2(
     nombre="cola"
 )
 
-worker_manager = WorkerManager(cola2=cola, dborm=dborm, num_workers=20, bzpop_timeout=1)
+cola3 = Cola2(
+    redis_host=REDIS_HOST,
+    redis_port=REDIS_PORT,
+    redis_password=REDIS_PASSWORD,  # tu password
+    redis_db=2,
+    nombre="cola"
+)
+
+RedisP = RedisParams(host=REDIS_HOST,port=REDIS_PORT,password=REDIS_PASSWORD,db=2)
+
+colamanager = ColaManager(RedisP)
+colamanager.create_many(10)
+
+worker_manager = WorkerManager(cola2=cola3, dborm=dborm, num_workers=1, bzpop_timeout=1)
 worker_manager.start()
 
 
@@ -133,6 +147,40 @@ def cola_resumen():
 @app.route("/ui/cola", methods=["GET"])
 def ui_cola():
     return render_template("cola_resumen.html", cola_nombre=cola.nombre)
+# --- en tu app Flask ---
+@app.route("/cola/resumen2", methods=["GET"], endpoint="cola_resumen2")
+def cola_resumen2():
+    print("HIT /cola/resumen2")  # <-- debe verse en consola SIEMPRE que la llamen
+    pend_page  = int(request.args.get("pend_page", 1))
+    pend_size  = int(request.args.get("pend_size", 500))
+    real_cursor= int(request.args.get("real_cursor", 0))
+    real_count = int(request.args.get("real_count", 500))
+    orden_desc = request.args.get("desc", "1") in ("1", "true", "True")
+
+    total_pendientes = cola.count_pendientes()
+    total_realizadas = cola.count_realizadas()
+
+    pendientes_page = cola.pendientes_paginado(page=pend_page, page_size=pend_size, mayor_a_menor=orden_desc)
+    real_cursor_next, realizadas_chunk = cola.realizadas_scan(cursor=real_cursor, count=real_count)
+
+    print("pend:", len(pendientes_page), "real:", len(realizadas_chunk), "cursor_next:", real_cursor_next)
+
+    return jsonify({
+        "cola": cola.nombre,
+        "total_pendientes": total_pendientes,
+        "total_realizadas": total_realizadas,
+        "pendientes": pendientes_page,
+        "pend_page": pend_page,
+        "pend_size": pend_size,
+        "pend_total_pages": ((total_pendientes + pend_size - 1) // pend_size) if pend_size > 0 else 1,
+        "realizadas": realizadas_chunk,
+        "real_cursor_next": real_cursor_next,
+        "real_count": real_count
+    }), 200
+
+@app.route("/ui/colapaginate", methods=["GET"])
+def ui_colapaginate():
+    return render_template("cola_resumen_paginate.html", cola_nombre=cola.nombre)
 
 @app.route("/status/<id_tarea>", methods=["GET"])
 def obtener_respuesta(id_tarea):
@@ -361,11 +409,16 @@ def agregar_carreraasync():
         )
         
         # Agregar la tarea a la cola para procesarla de manera asincrónica
-        tarea_id = cola.agregar(
-            metodo=Metodo.POST,
-            prioridad=Prioridad.ALTA,
-            payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
-        ) 
+       # tarea_id = cola.agregar(
+        #    metodo=Metodo.POST,
+       #     prioridad=Prioridad.ALTA,
+       #     payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+       # ) 
+        
+        tarea_id = colamanager.agregar_tarea( 
+        metodo=Metodo.POST,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  )
 
         return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
     
@@ -387,11 +440,17 @@ def actualizar_carrera():
         )
         
         # Agregar la tarea de actualización a la cola
-        tarea_id = cola.agregar(
-            metodo=Metodo.PUT,
-            prioridad=Prioridad.ALTA,
-            payload=json.dumps(dto.to_dictid())  # Usar to_dictid para mantener 'id' en el payload
-        ) 
+       # tarea_id = cola.agregar(
+        #    metodo=Metodo.PUT,
+        #    prioridad=Prioridad.ALTA,
+       #     payload=json.dumps(dto.to_dictid())  # Usar to_dictid para mantener 'id' en el payload
+       # ) 
+        
+        
+        tarea_id = colamanager.agregar_tarea( 
+        metodo=Metodo.PUT,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  )
 
         return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
     
@@ -404,11 +463,16 @@ def listar_carrerasasync():
     dto = CarreraDTO()  # Crear un DTO vacío para representar la búsqueda general de carreras
     
     # Agregar la tarea para listar todas las carreras a la cola
-    tarea_id = cola.agregar(
+   # tarea_id = cola.agregar(
+   #     metodo=Metodo.GET,
+   # #    prioridad=Prioridad.ALTA,
+   #     payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
+   # ) 
+    
+    tarea_id = colamanager.agregar_tarea( 
         metodo=Metodo.GET,
         prioridad=Prioridad.ALTA,
-        payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
-    ) 
+        payload=json.dumps(dto.to_dict())  )
 
     return jsonify({"id_tarea": tarea_id}), 202
     

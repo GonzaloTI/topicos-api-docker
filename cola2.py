@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 import uuid
 import redis
 import json
@@ -141,4 +141,48 @@ class Cola2:
                 self.redis.flushdb()
         except TypeError:
             self.redis.flushdb()
-    
+
+    # ---- PENDIENTES (ZSET) ----
+    def count_pendientes(self) -> int:
+        return self.redis.zcard(self.nombre)
+
+    def pendientes_paginado(self, page: int = 1, page_size: int = 500, mayor_a_menor: bool = True) -> List[Dict]:
+        """
+        Pagina el ZSET sin consumirlo.
+        """
+        page = max(1, page)
+        start = (page - 1) * page_size
+        end = start + page_size - 1
+        fn = self.redis.zrevrange if mayor_a_menor else self.redis.zrange
+        members = fn(self.nombre, start, end, withscores=True)
+
+        out: List[Dict] = []
+        for member, score in members:
+            try:
+                t = json.loads(member)
+            except Exception:
+                t = {"raw": member}
+            t.setdefault("estado", "pendiente")
+            t["prioridad"] = score
+            out.append(t)
+        return out
+
+    # ---- REALIZADAS (HASH :status) ----
+    def count_realizadas(self) -> int:
+        return self.redis.hlen(self._status_hash)
+
+    def realizadas_scan(self, cursor: int = 0, count: int = 500) -> Tuple[int, List[Dict]]:
+        """
+        Paginación eficiente por cursor sobre el HASH (orden no garantizado).
+        Devuelve (cursor_siguiente, lista_de_tareas_dict).
+        Usa esto cuando prefieres eficiencia antes que orden fijo.
+        """
+        cursor_next, chunk = self.redis.hscan(self._status_hash, cursor=cursor, count=count)
+        items = []
+        for _k, v in chunk.items():
+            try:
+                t = json.loads(v)
+            except Exception:
+                t = {"raw": v}
+            items.append(t)
+        return cursor_next, items

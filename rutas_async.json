@@ -1,0 +1,325 @@
+[
+  {
+    "url": "http://localhost:8000/carrerasasync",
+    "method": "POST",
+    "body": {
+      "nombre": "Ing. Software",
+      "codigo": "SOF-001",
+      "otros": ""
+    }
+  },
+  {
+    "url": "http://localhost:8000/carrerasasync",
+    "method": "PUT",
+    "body": {
+      "nombre": "Ing. Software",
+      "codigo": "SOF-001",
+      "otros": "actualizado"
+    }
+  },
+  {
+    "url": "http://localhost:8000/carrerasasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/planesasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/planesasync",
+    "method": "POST",
+    "body": {
+      "nombre": "Plan 2025",
+      "codigo": "PLN-2025",
+      "fecha": "2025-09-11",
+      "estado": "ACTIVO",
+      "carrera_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/planesasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "nombre": "Plan 2025 actualizado",
+      "codigo": "PLN-2025-A",
+      "fecha": "2025-09-12",
+      "estado": "INACTIVO",
+      "carrera_id": 2
+    }
+  },
+  {
+    "url": "http://localhost:8000/materiasasync",
+    "method": "POST",
+    "body": {
+      "sigla": "INF-201",
+      "nombre": "Estructuras",
+      "creditos": 5,
+      "plan_id": 1,
+      "nivel_id": 2
+    }
+  },
+  {
+    "url": "http://localhost:8000/materiasasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "sigla": "INF-201",
+      "nombre": "Estructuras de Datos",
+      "creditos": 6,
+      "plan_id": 1,
+      "nivel_id": 2
+    }
+  },
+
+   {
+    "url": "http://localhost:8000/prerrequisitosasync",
+    "method": "GET"
+  },
+ {
+    "url": "http://localhost:8000/prerrequisitosasync",
+    "method": "POST",
+    "body": {
+        "materia_id":1,
+        "materia_requisito_id":3
+    }
+  },
+
+
+  {
+    "url": "http://localhost:8000/materiasasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/nivelesasync",
+    "method": "POST",
+    "body": {
+      "nivel": 2
+    }
+  },
+  {
+    "url": "http://localhost:8000/nivelesasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/docentesasync",
+    "method": "POST",
+    "body": {
+      "registro": "87654321",
+      "ci": "7654321",
+      "nombre": "María Gómez",
+      "telefono": "71234567",
+      "otros": ""
+    }
+  },
+  {
+    "url": "http://localhost:8000/docentesasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "registro": "12345678",
+      "ci": "1234567",
+      "nombre": "Juan P. (act.)",
+      "telefono": "70000000",
+      "otros": ""
+    }
+  },
+  {
+    "url": "http://localhost:8000/docentesasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/estudiantesasync",
+    "method": "POST",
+    "body": {
+      "registro": "23456789",
+      "ci": "1112223",
+      "nombre": "Ana López",
+      "telefono": "70000001",
+      "correo": "ana@correo.com",
+      "otros": ""
+    }
+  },
+  {
+    "url": "http://localhost:8000/estudiantesasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "registro": "12345678",
+      "ci": "9876543",
+      "nombre": "Carlos R. (act.)",
+      "telefono": "70000002",
+      "correo": "carlos@correo.com",
+      "otros": ""
+    }
+  },
+  {
+    "url": "http://localhost:8000/estudiantesasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/modulosasync",
+    "method": "POST",
+    "body": {
+      "numero": "320",
+      "nombre": "Edificio Tecnología"
+    }
+  },
+  {
+    "url": "http://localhost:8000/modulosasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "numero": "320",
+      "nombre": "Edificio Tec (act.)"
+    }
+  },
+  {
+    "url": "http://localhost:8000/modulosasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/aulasasync",
+    "method": "POST",
+    "body": {
+      "numero": "102",
+      "nombre": "Aula Magna",
+      "modulo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/aulasasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "numero": "101",
+      "nombre": "Lab 1 (act.)",
+      "modulo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/aulasasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/horariosasync",
+    "method": "POST",
+    "body": {
+      "dia": "Martes",
+      "hora_inicio": "10:00:00",
+      "hora_fin": "12:00:00",
+      "grupo_id": 2,
+      "aula_id": 2
+    }
+  },
+  {
+    "url": "http://localhost:8000/horariosasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "dia": "Miércoles",
+      "hora_inicio": "08:00:00",
+      "hora_fin": "10:00:00",
+      "grupo_id": 3,
+      "aula_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/horariosasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/gruposmateriaasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/gruposmateriaasync",
+    "method": "POST",
+    "body": {
+      "grupo": "B",
+      "nombre": "Grupo B",
+      "estado": "Activo",
+      "materia_id": 1,
+      "docente_id": 1,
+      "periodo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/gruposmateriaasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "grupo": "C",
+      "nombre": "Grupo C",
+      "estado": "Inactivo",
+      "materia_id": 1,
+      "docente_id": 1,
+      "periodo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/inscripcionesasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/inscripcionesasync",
+    "method": "POST",
+    "body": {
+      "fecha": "2025-03-01",
+      "estudiante_id": 1,
+      "periodo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/inscripcionesasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "fecha": "2025-04-01",
+      "estudiante_id": 1,
+      "periodo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/inscripcionmateriaasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/inscripcionmateriaasync",
+    "method": "POST",
+    "body": {
+      "inscripcion_id": 1,
+      "grupo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/inscripcionmateriaasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "inscripcion_id": 1,
+      "grupo_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/notasasync",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:8000/notasasync",
+    "method": "POST",
+    "body": {
+      "nota": 90,
+      "InscripcionMateria_id": 1
+    }
+  },
+  {
+    "url": "http://localhost:8000/notasasync",
+    "method": "PUT",
+    "body": {
+      "id": 1,
+      "nota": 95,
+      "InscripcionMateria_id": 1
+    }
+  }
+]
