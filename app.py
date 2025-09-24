@@ -77,8 +77,8 @@ cola3 = Cola2(
 
 RedisP = RedisParams(host=REDIS_HOST,port=REDIS_PORT,password=REDIS_PASSWORD,db=2)
 
-colamanager = ColaManager(RedisP)
-colamanager.create_many(10)
+colamanager = ColaManager(RedisP,dborm=dborm)
+colamanager.create_many(5)
 
 worker_manager = WorkerManager(cola2=cola3, dborm=dborm, num_workers=1, bzpop_timeout=1)
 worker_manager.start()
@@ -192,6 +192,110 @@ def obtener_respuesta(id_tarea):
     else:
         # Si no hay resultado disponible aún
         return jsonify({"error": "Respuesta aún no disponible"}), 404
+# LISTAR colas creadas en el manager
+@app.get("/colas")
+# @token_required
+def colas_listar():
+    nombres = colamanager.list_queues()
+    return jsonify({
+        "total": len(nombres),
+        "colas": nombres
+    }), 200
+@app.post("/colas")
+def crear_cola_por_nombre():
+    data = request.get_json(silent=True) or {}
+    nombre = (data.get("nombre") or "").strip()
+    num_workers = data.get("numero_workers", 1)
+    try:
+        num_workers = int(num_workers)
+    except (ValueError, TypeError):
+        num_workers = 1
+
+    if not nombre:
+        return jsonify({"error": "Debes enviar {'nombre': '...', 'numero_workers': N}"}), 400
+    for s in colamanager._slots:
+        if s.cola.nombre == nombre:
+            return jsonify({"mensaje": "La cola ya existe", "cola": nombre}), 200
+    cola_creada = colamanager.create_queue(nombre, num_workers=num_workers)
+    return jsonify({
+        "mensaje": "Cola creada",
+        "cola": cola_creada.nombre,
+        "workers": num_workers
+    }), 201
+@app.delete("/colas/<nombre>")
+def eliminar_cola(nombre: str):
+
+    res = colamanager.delete_queue(nombre)
+    
+    if not res.get("removed"):
+        reason = res.get("reason", "unknown")
+        code = 409 if reason in ("queue-busy",) else 404
+        return jsonify({"error": reason, "cola": nombre}), code
+
+    return jsonify(res), 200
+
+
+@app.post("/colas/pause")
+def pause_many():
+    '''{"colas":["cola_1","cola_2","cola_5"]}'''
+    data = request.get_json(silent=True) or {}
+    colas = data.get("colas")  # lista de nombres, si falta => todas
+    if isinstance(colas, list) and colas:
+        afectados = sum(colamanager.pause_workers(nombre) for nombre in colas)
+    else:
+        afectados = colamanager.pause_workers()  # todas
+    return jsonify({"ok": True, "accion": "pause", "colas_afectadas": afectados}), 200
+
+
+@app.post("/colas/resume")
+def resume_many():
+    '''{"colas":["cola_1","cola_2","cola_5"]}'''
+    data = request.get_json(silent=True) or {}
+    colas = data.get("colas")
+    if isinstance(colas, list) and colas:
+        afectados = sum(colamanager.resume_workers(nombre) for nombre in colas)
+    else:
+        afectados = colamanager.resume_workers()
+    return jsonify({"ok": True, "accion": "resume", "colas_afectadas": afectados}), 200
+
+
+@app.post("/colas/stop")
+def stop_many():
+    '''{"colas":["cola_1","cola_2","cola_5"]}'''
+    data = request.get_json(silent=True) or {}
+    colas = data.get("colas")
+    if isinstance(colas, list) and colas:
+        afectados = sum(colamanager.stop_workers(nombre) for nombre in colas)
+    else:
+        afectados = colamanager.stop_workers()
+    return jsonify({"ok": True, "accion": "stop", "colas_afectadas": afectados}), 200
+
+
+
+@app.get("/colas/<nombre_cola>/resultados/<id_tarea>")
+def obtener_resultado_por_id(nombre_cola: str, id_tarea: str):
+    # buscar en la cola específica
+    slot = colamanager._get_slot(nombre_cola) if hasattr(colamanager, "_get_slot") else None
+    if not slot:
+        return jsonify({"error": f"cola '{nombre_cola}' no existe"}), 404
+
+    resultado = slot.cola.obtener_resultado(id_tarea)
+    if resultado is not None:
+        return jsonify({
+            "cola": nombre_cola,
+            "id_tarea": id_tarea,
+            "resultado": resultado
+        }), 200
+
+    return jsonify({
+        "error": "Respuesta aún no disponible",
+        "cola": nombre_cola,
+        "id_tarea": id_tarea
+    }), 404
+
+
+
+
 
 
 @app.route("/initdb", methods=["POST"])
@@ -415,7 +519,7 @@ def agregar_carreraasync():
        #     payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
        # ) 
         
-        tarea_id = colamanager.agregar_tarea( 
+        tarea_id = colamanager.agregar_tarea_Round_Robin( 
         metodo=Metodo.POST,
         prioridad=Prioridad.ALTA,
         payload=json.dumps(dto.to_dict())  )
@@ -447,7 +551,7 @@ def actualizar_carrera():
        # ) 
         
         
-        tarea_id = colamanager.agregar_tarea( 
+        tarea_id = colamanager.agregar_tarea_Round_Robin( 
         metodo=Metodo.PUT,
         prioridad=Prioridad.ALTA,
         payload=json.dumps(dto.to_dict())  )
@@ -469,7 +573,7 @@ def listar_carrerasasync():
    #     payload=json.dumps(dto.to_dict())  # Enviar el DTO serializado
    # ) 
     
-    tarea_id = colamanager.agregar_tarea( 
+    tarea_id = colamanager.agregar_tarea_Round_Robin( 
         metodo=Metodo.GET,
         prioridad=Prioridad.ALTA,
         payload=json.dumps(dto.to_dict())  )
