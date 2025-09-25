@@ -245,54 +245,103 @@ class ColaManager:
             with self._lock:
                 slot.ocupada = False
                 self._cv.notify()
+    # def _pick_round_robin(self) -> Optional[ColaSlot]:
+    #     """Devuelve el siguiente slot NO ocupado en orden circular."""
+    #     n = len(self._slots)
+    #     if n == 0:
+    #         return None
+    #     start = self._rr_idx
+    #     for k in range(n):
+    #         idx = (start + k) % n
+    #         s = self._slots[idx]
+    #         if not s.ocupada:
+    #             # avanza el puntero para la próxima asignación
+    #             self._rr_idx = (idx + 1) % n
+    #             return s
+    #     return None
+    # def agregar_tarea_Round_Robin(
+    #     self,
+    #     metodo: Metodo,
+    #     prioridad: Prioridad,
+    #     payload=None,
+    #     timeout: float = 5.0
+    #     ) -> Tuple[str, str]:
+    #     chooser = self._pick_round_robin
+    #     end = time.time() + (timeout if timeout is not None else 0)
+
+    #     with self._lock:
+    #         while True:
+    #             if not self._slots:
+    #                 raise RuntimeError("No hay colas creadas en el manager")
+    #             slot = chooser()
+    #             if slot:
+    #                 slot.ocupada = True
+    #                 cola = slot.cola
+    #                 break
+    #             if timeout is None:
+    #                 self._cv.wait(timeout=0.25)
+    #             else:
+    #                 rem = end - time.time()
+    #                 if rem <= 0:
+    #                     raise RuntimeError("No hay colas libres (timeout)")
+    #                 self._cv.wait(timeout=min(0.25, rem))
+
+    #     try:
+    #         tarea_id = cola.agregar(metodo=metodo, prioridad=prioridad, payload=payload)
+    #         return cola.nombre, tarea_id
+    #     finally:
+    #         with self._lock:
+    #             slot.ocupada = False
+    #             self._cv.notify()
+# --- reemplaza estos dos métodos en tu ColaManager ---
+
     def _pick_round_robin(self) -> Optional[ColaSlot]:
-        """Devuelve el siguiente slot NO ocupado en orden circular."""
+        """
+        Devuelve el siguiente slot en orden circular, sin mirar 'ocupada'.
+        La elección se hace bajo lock por el llamador.
+        """
         n = len(self._slots)
         if n == 0:
             return None
-        start = self._rr_idx
-        for k in range(n):
-            idx = (start + k) % n
-            s = self._slots[idx]
-            if not s.ocupada:
-                # avanza el puntero para la próxima asignación
-                self._rr_idx = (idx + 1) % n
-                return s
-        return None
+        slot = self._slots[self._rr_idx % n]
+        self._rr_idx = (self._rr_idx + 1) % n
+        return slot
+
     def agregar_tarea_Round_Robin(
         self,
         metodo: Metodo,
         prioridad: Prioridad,
         payload=None,
-        timeout: float = 2.0
+        timeout: float | None = None
         ) -> Tuple[str, str]:
-        chooser = self._pick_round_robin
-        end = time.time() + (timeout if timeout is not None else 0)
-
-        with self._lock:
-            while True:
-                if not self._slots:
-                    raise RuntimeError("No hay colas creadas en el manager")
-                slot = chooser()
-                if slot:
-                    slot.ocupada = True
-                    cola = slot.cola
-                    break
-                if timeout is None:
-                    self._cv.wait(timeout=0.25)
-                else:
+        """
+        Elige una cola por round-robin bajo lock y encola fuera del lock.
+        No bloquea por 'ocupada' porque encolar en Redis es seguro en paralelo.
+        Si no existen colas aún, puede esperar hasta 'timeout' a que se creen.
+        """
+        # Esperar a que haya al menos una cola, si así lo piden
+        if timeout is not None:
+            end = time.time() + timeout
+            with self._lock:
+                while not self._slots:
                     rem = end - time.time()
                     if rem <= 0:
-                        raise RuntimeError("No hay colas libres (timeout)")
+                        raise RuntimeError("No hay colas creadas en el manager")
                     self._cv.wait(timeout=min(0.25, rem))
-
-        try:
-            tarea_id = cola.agregar(metodo=metodo, prioridad=prioridad, payload=payload)
-            return cola.nombre, tarea_id
-        finally:
+                slot = self._pick_round_robin()
+                cola = slot.cola
+        else:
+            # Sin timeout: esperar indefinidamente a que aparezca alguna cola
             with self._lock:
-                slot.ocupada = False
-                self._cv.notify()
+                while not self._slots:
+                    self._cv.wait(timeout=0.25)
+                slot = self._pick_round_robin()
+                cola = slot.cola
+
+        # Fuera del lock: encolar 
+        tarea_id = cola.agregar(metodo=metodo, prioridad=prioridad, payload=payload)
+        return cola.nombre, tarea_id
+
 
     # --- helpers internos ---
     def _get_slot(self, nombre: str) -> Optional[ColaSlot]:
@@ -348,3 +397,51 @@ class ColaManager:
             wm.stop_all()
             afectados += 1
         return afectados
+
+    # =======Aumentar y Quitar workers de las colas ==============================
+
+    def add_workers_to_queue(self, nombre: str, n: int) -> dict:
+        """
+        Añade n workers a la cola 'nombre'. Si no tenía WorkerManager, lo crea.
+        """
+        if n <= 0:
+            return {"ok": False, "reason": "n must be > 0"}
+
+        with self._lock:
+            slot = self._get_slot(nombre)
+            if not slot:
+                return {"ok": False, "reason": "queue-not-found"}
+
+            if slot.worker_manager is None:
+                # crear WM nuevo con n workers
+                wm = WorkerManager(
+                    cola2=slot.cola,
+                    dborm=self.dborm,
+                    num_workers=0,  # arranca vacío
+                    bzpop_timeout=self.bzpop_timeout
+                )
+                slot.worker_manager = wm
+            else:
+                wm = slot.worker_manager
+
+        created = wm.add_workers(n)
+        return {"ok": True, "queue": nombre, "added": created, "total": wm.count()}
+
+    def remove_workers_from_queue(self, nombre: str, n: int) -> dict:
+        """
+        Quita n workers de la cola 'nombre' (parando hilos).
+        """
+        if n <= 0:
+            return {"ok": False, "reason": "n must be > 0"}
+
+        with self._lock:
+            slot = self._get_slot(nombre)
+            if not slot or not slot.worker_manager:
+                return {"ok": False, "reason": "no-worker-manager"}
+
+            wm = slot.worker_manager
+
+        removed = wm.remove_workers(n)
+        return {"ok": True, "queue": nombre, "removed": removed, "total": wm.count()}
+
+    

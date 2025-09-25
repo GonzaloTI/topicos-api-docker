@@ -62,7 +62,7 @@ class Cola2:
         Saca la tarea de MAYOR prioridad de forma BLOQUEANTE.
         BZPOPMAX devuelve (key, member, score) y YA elimina del ZSET.
         """
-        res = self.redis.bzpopmax(self.nombre, timeout=10)
+        res = self.redis.bzpopmax(self.nombre, timeout=timeout)
         if not res:
             return None
         _key, tarea_json, _score = res
@@ -95,7 +95,7 @@ class Cola2:
         """
         tarea_data = self.redis.hget(self._status_hash, tarea_id)
         if tarea_data:
-            print(f"Datos recuperados de Redis para tarea {tarea_id}: {tarea_data}")
+            #print(f"Datos recuperados de Redis para tarea {tarea_id}: {tarea_data}")
             tarea = Tarea.from_dict(json.loads(tarea_data))
             print(f"Resultado de tarea {tarea_id}: {tarea.resultado}")
             return tarea.resultado

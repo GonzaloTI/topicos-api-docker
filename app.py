@@ -1,5 +1,5 @@
 import json
-from flask import Flask, Response, render_template, request, jsonify
+from flask import Flask, Response, render_template, request, jsonify, url_for
 from pony.orm import Database, Required, Optional, PrimaryKey, db_session, Set , commit, rollback
 from pony.orm.core import TransactionIntegrityError, ObjectNotFound
 import datetime
@@ -77,8 +77,8 @@ cola3 = Cola2(
 
 RedisP = RedisParams(host=REDIS_HOST,port=REDIS_PORT,password=REDIS_PASSWORD,db=2)
 
-colamanager = ColaManager(RedisP,dborm=dborm)
-colamanager.create_many(5)
+colamanager = ColaManager(RedisP,dborm=dborm ,bzpop_timeout= 1)
+colamanager.create_many(1,num_workers=1)
 
 worker_manager = WorkerManager(cola2=cola3, dborm=dborm, num_workers=1, bzpop_timeout=1)
 worker_manager.start()
@@ -181,6 +181,80 @@ def cola_resumen2():
 @app.route("/ui/colapaginate", methods=["GET"])
 def ui_colapaginate():
     return render_template("cola_resumen_paginate.html", cola_nombre=cola.nombre)
+
+
+# === RESUMEN POR COLA (clon 1:1 del anterior) =========================================================
+@app.route("/colas/<nombre_cola>/resumen2", methods=["GET"], endpoint="cola_resumen2_por_cola")
+def cola_resumen2_por_cola(nombre_cola: str):
+    print(f"HIT /colas/{nombre_cola}/resumen2")  # <-- debe verse en consola SIEMPRE
+
+    # 1) Ubicar la cola
+    slot = colamanager._get_slot(nombre_cola) if hasattr(colamanager, "_get_slot") else None
+    if not slot:
+        return jsonify({"error": f"cola '{nombre_cola}' no existe"}), 404
+    cola = slot.cola
+
+    # 2) Misma lectura de query params
+    pend_page   = int(request.args.get("pend_page", 1))
+    pend_size   = int(request.args.get("pend_size", 500))
+    real_cursor = int(request.args.get("real_cursor", 0))
+    real_count  = int(request.args.get("real_count", 500))
+    orden_desc  = request.args.get("desc", "1") in ("1", "true", "True")
+
+    # 3) Mismos conteos y paginaciones que antes
+    total_pendientes = cola.count_pendientes()
+    total_realizadas = cola.count_realizadas()
+
+    pendientes_page = cola.pendientes_paginado(
+        page=pend_page, page_size=pend_size, mayor_a_menor=orden_desc
+    )
+    real_cursor_next, realizadas_chunk = cola.realizadas_scan(
+        cursor=real_cursor, count=real_count
+    )
+    # --- LIGERAR RESPUESTA ---
+    # Realizadas: quitar 'resultado' y marcar que se puede pedir aparte
+    for t in realizadas_chunk:
+        if "resultado" in t:
+            t.pop("resultado", None)
+            t["resultado_disponible"] = True
+        else:
+            t["resultado_disponible"] = False
+
+    print("pend:", len(pendientes_page), "real:", len(realizadas_chunk), "cursor_next:", real_cursor_next)
+
+    # 4) Misma forma de respuesta
+    return jsonify({
+        "cola": cola.nombre,
+        "total_pendientes": total_pendientes,
+        "total_realizadas": total_realizadas,
+        "pendientes": pendientes_page,
+        "pend_page": pend_page,
+        "pend_size": pend_size,
+        "pend_total_pages": ((total_pendientes + pend_size - 1) // pend_size) if pend_size > 0 else 1,
+        "realizadas": realizadas_chunk,
+        "real_cursor_next": real_cursor_next,
+        "real_count": real_count
+    }), 200
+
+# === UI por cola seleccionada =================================================================================
+@app.route("/ui/colapaginate/<nombre_cola>", methods=["GET"])
+def ui_colapaginate_por_cola(nombre_cola: str):
+    # Pasamos el nombre y la URL del resumen de esa cola, para que el JS no dependa de una global
+    return render_template(
+        "cola_resumen_paginate_multicola.html",
+        cola_nombre=nombre_cola,
+        resumen_url=url_for("cola_resumen2_por_cola", nombre_cola=nombre_cola)
+    )
+@app.post("/colas/<nombre>/workers/add/<int:n>")
+def colas_add_workers(nombre, n):
+    out = colamanager.add_workers_to_queue(nombre, n)
+    return jsonify(out), (200 if out.get("ok") else 400)
+
+@app.post("/colas/<nombre>/workers/remove/<int:n>")
+def colas_remove_workers(nombre, n):
+    out = colamanager.remove_workers_from_queue(nombre, n)
+    return jsonify(out), (200 if out.get("ok") else 400)
+
 
 @app.route("/status/<id_tarea>", methods=["GET"])
 def obtener_respuesta(id_tarea):

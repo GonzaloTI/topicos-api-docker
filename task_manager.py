@@ -15,6 +15,13 @@ from cola2 import Cola2
 
 class WorkerManager:
     def __init__(self, cola2: Cola2, dborm, num_workers: int = 1, bzpop_timeout: int = 1):
+        
+        self._lock = threading.RLock()
+        self._next_id = num_workers + 1
+        self.cola = cola2
+        self.dborm = dborm
+        self.bzpop_timeout = bzpop_timeout
+        
         self.workers = [
             TaskWorker(cola2=cola2, dborm=dborm, name=f"Worker-{i+1}", bzpop_timeout=bzpop_timeout)
             for i in range(num_workers)
@@ -23,8 +30,13 @@ class WorkerManager:
 
     def start(self):
         for w in self.workers:
+            print(f"[Iniciando worker para cola='{w.cola.nombre}'")
             w.start()
         logger.info(f"Iniciados {len(self.workers)} workers")
+    def count(self) -> int:
+        # Si quieres contar solo vivos:
+        with self._lock:
+            return sum(1 for w in self.workers if w.is_alive())
 
     def pause_all(self):
         for w in self.workers:
@@ -42,6 +54,42 @@ class WorkerManager:
         for w in self.workers:
             w.join(timeout=2.0)
         logger.info("Workers detenidos")
+    
+    def add_workers(self, n: int) -> dict:
+        created = []
+        with self._lock:
+            for _ in range(max(0, n)):
+                name = f"Worker-{self._next_id}"
+                self._next_id += 1
+                w = TaskWorker(cola2=self.cola, dborm=self.dborm, name=name, bzpop_timeout=self.bzpop_timeout)
+                w.start()
+                self.workers.append(w)
+                created.append(w.name)
+        return {"ok": True, "added": len(created), "names": created}
+
+    # === NUEVO: remover n workers ===
+    def remove_workers(self, n: int) -> dict:
+        stopped = []
+        with self._lock:
+            # tomar vivos desde el final para “apagar” los más nuevos primero
+            candidates = [w for w in reversed(self.workers) if w.is_alive()]
+            to_stop = candidates[:max(0, n)]
+            for w in to_stop:
+                w.stop()
+        # fuera del lock: join
+        for w in to_stop:
+            w.join(timeout=2.0)
+        # limpiar la lista
+        with self._lock:
+            remaining = []
+            for w in self.workers:
+                if w in to_stop:
+                    stopped.append(w.name)
+                else:
+                    remaining.append(w)
+            self.workers = remaining
+        return {"ok": True, "removed": len(stopped), "names": stopped}
+    
 
 # ------Worker -----------------------------------
 
