@@ -44,6 +44,11 @@ class ColaManager:
         self._rr_idx = 0  # <- puntero de round-robin
         self.bzpop_timeout=bzpop_timeout
         self.dborm = dborm
+        
+        self.balanceo_activo: bool = False
+        self.colabalanceo: dict[str, dict] = {}  # nombre -> {"objetivo": int, "restante": int}
+        self._bal_order: list[str] = []          # orden estable de colas en balanceo
+        self._bal_idx: int = 0  
 
     # ---------- creación / eliminación ----------
     def create_queue(self, nombre: str,num_workers: int = 1) -> Cola2:
@@ -53,6 +58,9 @@ class ColaManager:
             for s in self._slots:
                 if s.cola.nombre == nombre:
                     return s.cola
+            
+            objetivo = self._max_carga_total_old() # calcular el objetivo del balanceo antes de crearlo
+                 
             cola = Cola2(
                 redis_host=self._p.host,
                 redis_port=self._p.port,
@@ -72,8 +80,31 @@ class ColaManager:
 
             self._slots.append(ColaSlot(cola=cola, worker_manager=wm))
             self._cv.notify_all()
+            
+            if objetivo >= 5:
+            # colabalanceo_add debe existir y setear balanceo_activo
+                self.colabalanceo_add(nombre, objetivo=objetivo)
+            
             return cola
-
+        
+    def _max_carga_total_old(self) -> int:
+        """
+        Máximo de (pendientes + realizadas) entre colas 'viejas'.
+        Excluye colas que ya están en colabalanceo (opcionales) para no sesgar el target.
+        """
+        bases = [s for s in self._slots if s.cola.nombre not in self.colabalanceo]
+        if not bases:
+            return 0
+        max_carga = 0
+        for s in bases:
+            try:
+                p = s.cola.count_pendientes()
+                r = s.cola.count_realizadas()
+            except Exception:
+                p, r = 0, 0
+            max_carga = max(max_carga, p + r)
+        return max_carga
+    
     def create_many(self, n: int, prefix: str = "cola", num_workers: int = 1) -> List[str]:
         names = []
         with self._lock:
@@ -307,6 +338,125 @@ class ColaManager:
         self._rr_idx = (self._rr_idx + 1) % n
         return slot
 
+    #def insertar_valanceo(self, metodo: Metodo,prioridad: Prioridad,payload=None,timeout: float | None = None)
+    # inserta con valanceo 
+    # una funcion que inserta entre los que estan dentro de colabalanceo, , en self.colabalanceo: hay la referencia por id o nombre de la cola y su objetivo ,
+    # se va inseratando entre los queesteen dentro de colabalanceo, itera sobre ellos, y les va restando su objeivo una ves que termina se los saca de colabalanceo,
+    # sale termina los que estan en colabanaceo y se lossaca de la self.colabalanceo , y queda vacio, y queda vacio, y el round robin ya no entraa aqui 
+    def insertar_valanceo(
+        self,
+        metodo: Metodo,
+        prioridad: Prioridad,
+        payload=None,
+        timeout: float | None = None
+        ) -> Tuple[str, str]:
+        """
+        Inserta una tarea en alguna de las colas listadas en 'colabalanceo',
+        repartiendo round-robin entre ellas y decrementando su 'restante'.
+        Si ya no hay balanceo, cae al RR normal.
+        """
+        # Asegurar que existan colas
+        print("insertando en colabalanceo")
+        
+        if timeout is not None:
+            end = time.time() + timeout
+            with self._lock:
+                while not self._slots:
+                    rem = end - time.time()
+                    if rem <= 0:
+                        raise RuntimeError("No hay colas creadas en el manager")
+                    self._cv.wait(timeout=min(0.25, rem))
+        else:
+            with self._lock:
+                while not self._slots:
+                    self._cv.wait(timeout=0.25)
+
+        # Elegir destino del balanceo bajo lock
+        with self._lock:
+            slot = self._colabalanceo_pick_slot_locked()
+            if slot is None:
+                # Sin balanceo válido → RR normal
+                self.balanceo_activo = False
+                slot = self._pick_round_robin()
+            cola = slot.cola
+            nombre = cola.nombre
+
+        # Encolar fuera del lock
+        tarea_id = cola.agregar(metodo=metodo, prioridad=prioridad, payload=payload)
+
+        # Post-actualización del balanceo
+        with self._lock:
+            if nombre in self.colabalanceo:
+                self.colabalanceo[nombre]["restante"] -= 1
+                if self.colabalanceo[nombre]["restante"] <= 0:
+                    # terminó su objetivo
+                    self._colabalanceo_prune()  # esto también puede apagar balanceo si queda vacío
+
+        return nombre, tarea_id
+
+    def colabalanceo_add(self, nombre: str, objetivo: int) -> None:
+        with self._lock:
+            objetivo = max(0, int(objetivo))
+            if nombre not in self.colabalanceo:
+                self.colabalanceo[nombre] = {"objetivo": objetivo, "restante": objetivo}
+                self._bal_order.append(nombre)
+            else:
+                self.colabalanceo[nombre]["objetivo"] = objetivo
+                self.colabalanceo[nombre]["restante"] = objetivo
+                if nombre not in self._bal_order:
+                    self._bal_order.append(nombre)
+            self.balanceo_activo = True
+            if self._bal_order:
+                self._bal_idx %= max(1, len(self._bal_order))
+
+    def _colabalanceo_prune(self) -> None:
+        """Limpia colas terminadas o inexistentes, Apaga balanceo si ya no queda ninguna."""
+        changed = False
+        for nombre in list(self._bal_order):
+            meta = self.colabalanceo.get(nombre)
+            slot = self._get_slot(nombre)
+            if (meta is None) or (slot is None) or (meta.get("restante", 0) <= 0):
+                # quitar del diccionario y del orden
+                self.colabalanceo.pop(nombre, None)
+                i = self._bal_order.index(nombre)
+                self._bal_order.pop(i)
+                if i <= self._bal_idx and self._bal_idx > 0:
+                    self._bal_idx -= 1
+                changed = True
+        if changed and self._bal_order:
+            self._bal_idx %= max(1, len(self._bal_order))
+        if not self._bal_order:
+            # no queda nadie en balanceo
+            self.colabalanceo.clear()
+            self._bal_idx = 0
+            self.balanceo_activo = False
+
+    def _colabalanceo_pick_slot_locked(self) -> Optional[ColaSlot]:
+        """
+        Selecciona la siguiente cola del grupo de balanceo (RR interno),
+        asumiendo que ya estamos dentro de self._lock.
+        """
+        self._colabalanceo_prune()
+        if not self.balanceo_activo or not self._bal_order:
+            return None
+
+        n = len(self._bal_order)
+        start = self._bal_idx % n
+        for k in range(n):
+            idx = (start + k) % n
+            nombre = self._bal_order[idx]
+            meta = self.colabalanceo.get(nombre)
+            slot = self._get_slot(nombre)
+            if meta and slot and meta.get("restante", 0) > 0:
+                # Avanza puntero para la próxima selección
+                self._bal_idx = (idx + 1) % n
+                return slot
+
+        # Si ninguna tenía restante, podar y terminar
+        self._colabalanceo_prune()
+        return None
+
+
     def agregar_tarea_Round_Robin(
         self,
         metodo: Metodo,
@@ -319,7 +469,12 @@ class ColaManager:
         No bloquea por 'ocupada' porque encolar en Redis es seguro en paralelo.
         Si no existen colas aún, puede esperar hasta 'timeout' a que se creen.
         """
-        # Esperar a que haya al menos una cola, si así lo piden
+        with self._lock:
+            hay_balanceo = self.balanceo_activo and bool(self.colabalanceo)
+
+        if hay_balanceo:
+            return self.insertar_valanceo(metodo, prioridad, payload=payload, timeout=timeout)
+        
         if timeout is not None:
             end = time.time() + timeout
             with self._lock:
