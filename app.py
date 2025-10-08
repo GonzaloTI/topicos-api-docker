@@ -28,6 +28,9 @@ import uuid
 from tarea import Tarea,Metodo,Prioridad
 from task_manager import WorkerManager
 
+from flask_cors import CORS
+
+
 
 app = Flask(__name__)
 
@@ -44,7 +47,7 @@ dborm = DatabaseORM(
     user="postgres",
     password="pgadmin123",
     host="localhost",
-    database="topicosflask"
+    database="topicosflask2"
 )
 
 SECRET_KEY = "mi_clave_secreta"
@@ -445,11 +448,11 @@ def initdb():
         )
 
         # Grupos de materias
-        g1 = GrupoMateria(grupo="A", nombre="Grupo A - Prog", estado="Activo", materia=m1, docente=d1,periodo=periodo)
-        g2 = GrupoMateria(grupo="A", nombre="Grupo A - Mate", estado="Activo", materia=m2, docente=d1,periodo=periodo)
-        g3 = GrupoMateria(grupo="A", nombre="Grupo A - Estructuras", estado="Activo", materia=m3, docente=d2,periodo=periodo)
-        g4 = GrupoMateria(grupo="A", nombre="Grupo A - BD", estado="Activo", materia=m4, docente=d2,periodo=periodo)
-        g5 = GrupoMateria(grupo="A", nombre="Grupo A - SO", estado="Activo", materia=m5, docente=d2,periodo=periodo)
+        g1 = GrupoMateria(grupo="A", nombre="Grupo A - Prog", estado="Activo", materia=m1, docente=d1,periodo=periodo,cupo=40)
+        g2 = GrupoMateria(grupo="A", nombre="Grupo A - Mate", estado="Activo", materia=m2, docente=d1,periodo=periodo,cupo=40)
+        g3 = GrupoMateria(grupo="A", nombre="Grupo A - Estructuras", estado="Activo", materia=m3, docente=d2,periodo=periodo,cupo=40)
+        g4 = GrupoMateria(grupo="A", nombre="Grupo A - BD", estado="Activo", materia=m4, docente=d2,periodo=periodo,cupo=40)
+        g5 = GrupoMateria(grupo="A", nombre="Grupo A - SO", estado="Activo", materia=m5, docente=d2,periodo=periodo,cupo=40)
 
         
         m1 = Modulo(numero="220", nombre="Edificio Principal")
@@ -1773,14 +1776,23 @@ def agregar_inscripcion():
     Periodo = dborm.db.Periodo
     data = request.json
     try:
-        estudiante = Estudiante[data["estudiante_id"]]
-        periodo = Periodo[data["periodo_id"]]
+        # Buscar estudiante por registro
+        estudiante = Estudiante.get(registro=data["estudiante_registro"])
+        if not estudiante:
+            return jsonify({"error": "Estudiante no encontrado"}), 404
+
+        periodo = Periodo.get(id=data["periodo_id"])
+        if not periodo:
+            return jsonify({"error": "Periodo no encontrado"}), 404
+
+        # Crear inscripción
         inscripcion = Inscripcion(
             fecha=datetime.date.fromisoformat(data["fecha"]),
             estudiante=estudiante,
             periodo=periodo
         )
         commit()
+
         return jsonify({
             "msg": "Inscripción agregada",
             "inscripcion": {
@@ -1790,12 +1802,11 @@ def agregar_inscripcion():
                 "periodo": {"id": periodo.id, "numero": periodo.numero}
             }
         }), 201
-    except ObjectNotFound:
-        rollback()
-        return jsonify({"error": "Estudiante o Periodo no encontrado"}), 404
+
     except Exception as e:
         rollback()
         return jsonify({"error": str(e)}), 400
+
 
 @app.route("/inscripciones", methods=["GET"])
 @db_session
@@ -1882,24 +1893,36 @@ def agregar_inscripcion_materia():
     GrupoMateria = dborm.db.GrupoMateria
     data = request.json
     try:
-        inscripcion = Inscripcion[data["inscripcion_id"]]
-        grupo = GrupoMateria[data["grupo_id"]]
+        # Obtener inscripción y grupo
+        inscripcion = Inscripcion.get(id=data["inscripcion_id"])
+        grupo = GrupoMateria.get(id=data["grupo_id"])
+        if not inscripcion or not grupo:
+            return jsonify({"error": "Inscripcion o GrupoMateria no encontrado"}), 404
+
+        # Validar cupo
+        if grupo.cupo is None or grupo.cupo <= 0:
+            return jsonify({"error": "No hay cupos disponibles en este grupo"}), 400
+
+        # Crear InscripcionMateria
         im = InscripcionMateria(inscripcion=inscripcion, grupo=grupo)
+
+        # Descontar cupo
+        grupo.cupo -= 1
         commit()
+
         return jsonify({
             "msg": "InscripcionMateria agregada",
             "inscripcionmateria": {
                 "id": im.id,
                 "inscripcion": {"id": inscripcion.id, "estudiante": inscripcion.estudiante.nombre},
-                "grupo": {"id": grupo.id, "nombre": grupo.nombre}
+                "grupo": {"id": grupo.id, "nombre": grupo.nombre, "cupo_restante": grupo.cupo}
             }
         }), 201
-    except ObjectNotFound:
-        rollback()
-        return jsonify({"error": "Inscripcion o GrupoMateria no encontrado"}), 404
+
     except Exception as e:
         rollback()
         return jsonify({"error": str(e)}), 400
+
 
 @app.route("/inscripcionmateria", methods=["GET"])
 @db_session
@@ -1922,11 +1945,16 @@ def agregar_inscripcion_materiaasync():
             grupo_id=data["grupo_id"]
         )
         
-        tarea_id = cola.agregar(
-            metodo=Metodo.POST,
-            prioridad=Prioridad.ALTA,
-            payload=json.dumps(dto.to_dict())
-        )
+        # tarea_id = cola.agregar(
+        #     metodo=Metodo.POST,
+        #     prioridad=Prioridad.ALTA,
+        #     payload=json.dumps(dto.to_dict())
+        # )
+        
+        tarea_id = colamanager.agregar_tarea_Round_Robin( 
+        metodo=Metodo.POST,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  )
         
         return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
     
@@ -2126,7 +2154,7 @@ def obtener_materias_estudiante():
         return jsonify({"error": str(e)}), 500
 
 
-
+CORS(app)
 
 
 if __name__ == "__main__":

@@ -157,6 +157,7 @@ class DatabaseORM:
             grupo = Required(str)
             nombre = Optional(str)
             estado = Optional(str)
+            cupo = Optional(int, default=0)
             materia = Required(Materia)
             docente = Required(Docente)
             periodo = Required(Periodo)        # relación al periodo

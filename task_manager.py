@@ -198,6 +198,10 @@ class TaskWorker(threading.Thread):
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
         
+        if entity_name == "InscripcionMateria":
+            return self._procesar_inscripcion_materia(dto_data)
+    
+        
         # Obtener el modelo
         Modelo = getattr(self.dborm.db, entity_name, None)
         if Modelo is None:
@@ -269,6 +273,43 @@ class TaskWorker(threading.Thread):
                     continue  # Continuar con el siguiente identificador
         
         return None
+
+
+    
+    @db_session
+    def _procesar_inscripcion_materia(self, dto_data: dict):
+        print("entrando por inscripcion")
+        """Proceso especial para InscripcionMateria: valida cupos y descuenta"""
+        InscripcionMateria = self.dborm.db.InscripcionMateria
+        Inscripcion = self.dborm.db.Inscripcion
+        GrupoMateria = self.dborm.db.GrupoMateria
+
+        # Obtener inscripción y grupo
+        inscripcion = Inscripcion.get(id=dto_data.get("inscripcion_id"))
+        grupo = GrupoMateria.get(id=dto_data.get("grupo_id"))
+        
+        if not inscripcion or not grupo:
+            raise ValueError("Inscripcion o GrupoMateria no encontrado")
+        
+        if grupo.cupo is None or grupo.cupo <= 0:
+            raise ValueError("No hay cupos disponibles en este grupo")
+        
+        # Crear InscripcionMateria
+        im = InscripcionMateria(inscripcion=inscripcion, grupo=grupo)
+        
+        # Descontar cupo
+        grupo.cupo -= 1
+        commit()
+        
+        return {
+            "id": im.id,
+            "inscripcion": {"id": inscripcion.id, "estudiante": inscripcion.estudiante.nombre},
+            "grupo": {"id": grupo.id, "nombre": grupo.nombre, "cupo_restante": grupo.cupo}
+        }
+
+    
+    
+    
     
     def _process_entity_data(self, Modelo, data):
         """Procesar datos de entrada, manejando relaciones y tipos especiales"""
