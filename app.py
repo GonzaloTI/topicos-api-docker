@@ -5,6 +5,7 @@ from pony.orm.core import TransactionIntegrityError, ObjectNotFound
 import datetime
 from functools import wraps
 import jwt
+from DTO.InscripcionMasivaDTO import InscripcionMasivaDTO
 from DTO.CarreraDTO import CarreraDTO
 from DTO.MateriaDTO import MateriaDTO
 from DTO.PrerequisitoDTO import PrerequisitoDTO
@@ -1885,6 +1886,127 @@ def listar_inscripcionesasync():
 # =========================
 # InscripcionMateria
 # =========================
+
+
+@app.route("/inscripcionmaterialist", methods=["POST"])
+@db_session
+def inscripcionmaterialist():
+    """
+    Crea una inscripción para un estudiante en un período específico,
+    inscribiéndolo en múltiples materias (GrupoMateria) a la vez.
+    La operación es atómica: si falla la inscripción a una materia,
+    se revierte toda la transacción.
+
+    JSON esperado:
+    {
+        "estudiante_registro": "219000111",
+        "periodo_id": 1,
+        "grupos_ids": [101, 102]
+    }
+    """
+    Inscripcion = dborm.db.Inscripcion
+    Estudiante = dborm.db.Estudiante
+    Periodo = dborm.db.Periodo
+    InscripcionMateria = dborm.db.InscripcionMateria
+    GrupoMateria = dborm.db.GrupoMateria
+    
+    data = request.json
+    
+    try:
+        # 1. Validaciones iniciales
+        estudiante = Estudiante.get(registro=data["estudiante_registro"])
+        if not estudiante:
+            return jsonify({"error": "Estudiante no encontrado"}), 404
+
+        periodo = Periodo.get(id=data["periodo_id"])
+        if not periodo:
+            return jsonify({"error": "Periodo no encontrado"}), 404
+
+        grupos_ids = data.get("grupos_ids", [])
+        if not isinstance(grupos_ids, list) or not grupos_ids:
+            return jsonify({"error": "La lista 'grupos_ids' es requerida y no puede estar vacía"}), 400
+
+        # 2. Validar todos los grupos y cupos ANTES de crear nada
+        grupos_a_inscribir = []
+        for grupo_id in grupos_ids:
+            grupo = GrupoMateria.get(id=grupo_id)
+            if not grupo:
+                return jsonify({"error": f"El grupo con ID {grupo_id} no fue encontrado"}), 404
+            if grupo.cupo is None or grupo.cupo <= 0:
+                return jsonify({"error": f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})"}), 400
+            grupos_a_inscribir.append(grupo)
+            
+        # 3. Crear la inscripción principal
+        # Usamos la fecha actual del servidor para la inscripción.
+        nueva_inscripcion = Inscripcion(
+            fecha=datetime.date.today(),
+            estudiante=estudiante,
+            periodo=periodo
+        )
+        
+        # 4. Crear las inscripciones a materias y descontar cupos
+        materias_inscritas_info = []
+        for grupo in grupos_a_inscribir:
+            InscripcionMateria(inscripcion=nueva_inscripcion, grupo=grupo)
+            grupo.cupo -= 1  # Descontar cupo
+            
+            materias_inscritas_info.append({
+                "id_grupo": grupo.id,
+                "nombre_grupo": grupo.nombre,
+                "cupo_restante": grupo.cupo
+            })
+
+        # 5. Si todo salió bien, confirmar la transacción
+        commit()
+
+        # 6. Devolver una respuesta exitosa y detallada
+        return jsonify({
+            "msg": "Inscripción completada exitosamente.",
+            "inscripcion": {
+                "id": nueva_inscripcion.id,
+                "fecha": str(nueva_inscripcion.fecha),
+                "estudiante": {"id": estudiante.id, "nombre": estudiante.nombre},
+                "periodo": {"id": periodo.id, "numero": periodo.numero}
+            },
+            "materias_inscritas": materias_inscritas_info
+        }), 201
+
+    except Exception as e:
+        # Si ocurre cualquier error, revertir todos los cambios en la BD
+        rollback()
+        # Es buena práctica registrar el error real en logs del servidor
+        # print(f"Error en la inscripción: {e}") 
+        return jsonify({"error": "Ocurrió un error interno al procesar la inscripción.", "detalle": str(e)}), 500
+
+
+@app.route("/inscripcionmaterialistasync", methods=["POST"])
+@db_session
+def inscripcionmaterialistasync():
+    
+    data = request.json
+    try:
+        dto = InscripcionMasivaDTO(
+            fecha=datetime.date.fromisoformat(data["fecha"]) if "fecha" in data else None,
+            estudiante_registro=data.get("estudiante_registro", None),
+            periodo_id= data.get("periodo_id", None),
+            grupos_ids= data.get("grupos_ids", []) 
+        )
+        
+        tarea_id = colamanager.agregar_tarea_Round_Robin( 
+        metodo=Metodo.POST,
+        prioridad=Prioridad.ALTA,
+        payload=json.dumps(dto.to_dict())  )
+        
+        return jsonify({"msg": "tarea procesándose...", "id_tarea": tarea_id}), 201
+    
+    except Exception as e:
+        rollback()
+        return jsonify({"error": str(e)}), 400
+
+        # 6. Devolver una respuesta exitosa y detallada
+    
+
+
 @app.route("/inscripcionmateria", methods=["POST"])
 @db_session
 def agregar_inscripcion_materia():

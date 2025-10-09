@@ -1,5 +1,6 @@
 # task_manager.py
 from datetime import datetime, date
+import datetime
 import json
 import base64
 from venv import logger
@@ -198,8 +199,8 @@ class TaskWorker(threading.Thread):
         dto_data = json.loads(tarea.payload)
         entity_name = dto_data.get("__entity__")
         
-        if entity_name == "InscripcionMateria":
-            return self._procesar_inscripcion_materia(dto_data)
+        if entity_name == "InscripcionMateriaList":
+            return self._procesar_inscripcion_materia2(dto_data)
     
         
         # Obtener el modelo
@@ -307,7 +308,73 @@ class TaskWorker(threading.Thread):
             "grupo": {"id": grupo.id, "nombre": grupo.nombre, "cupo_restante": grupo.cupo}
         }
 
-    
+    @db_session
+    def _procesar_inscripcion_materia2(self, dto_data: dict):
+        print("Entrando por proceso de inscripción de lista de materias.")
+        print(dto_data)
+        # 1. Obtener las entidades de la base de datos
+        Inscripcion = self.dborm.db.Inscripcion
+        Estudiante = self.dborm.db.Estudiante
+        Periodo = self.dborm.db.Periodo
+        InscripcionMateria = self.dborm.db.InscripcionMateria
+        GrupoMateria = self.dborm.db.GrupoMateria
+
+        # 2. Validaciones iniciales de los datos principales
+        estudiante = Estudiante.get(registro=dto_data.get("estudiante_registro"))
+        if not estudiante:
+            raise ValueError("Estudiante no encontrado")
+
+        periodo = Periodo.get(id=dto_data.get("periodo_id"))
+        if not periodo:
+            raise ValueError("Periodo no encontrado")
+
+        grupos_ids = dto_data.get("grupos_ids", [])
+        if not isinstance(grupos_ids, list) or not grupos_ids:
+            raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
+
+        # 3. Validar todos los grupos y sus cupos ANTES de crear cualquier registro
+        grupos_a_inscribir = []
+        for grupo_id in grupos_ids:
+            grupo = GrupoMateria.get(id=grupo_id)
+            if not grupo:
+                raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+            if grupo.cupo is None or grupo.cupo <= 0:
+                raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
+            grupos_a_inscribir.append(grupo)
+
+        # 4. Crear la inscripción principal
+        nueva_inscripcion = Inscripcion(
+            fecha=datetime.date.today(),
+            estudiante=estudiante,
+            periodo=periodo
+        )
+
+        # 5. Crear las inscripciones a materias y descontar los cupos
+        materias_inscritas_info = []
+        for grupo in grupos_a_inscribir:
+            InscripcionMateria(inscripcion=nueva_inscripcion, grupo=grupo)
+            grupo.cupo -= 1  # Descontar el cupo
+
+            materias_inscritas_info.append({
+                "id_grupo": grupo.id,
+                "nombre_grupo": grupo.nombre,
+                "cupo_restante": grupo.cupo
+            })
+
+        # 6. Confirmar la transacción (opcional si @db_session lo maneja, pero explícito es más claro)
+        commit()
+
+        # 7. Devolver un diccionario con el resultado detallado
+        return {
+            "msg": "Inscripción completada exitosamente.",
+            "inscripcion": {
+                "id": nueva_inscripcion.id,
+                "fecha": str(nueva_inscripcion.fecha),
+                "estudiante": {"id": estudiante.id, "nombre": estudiante.nombre},
+                "periodo": {"id": periodo.id, "numero": periodo.numero}
+            },
+            "materias_inscritas": materias_inscritas_info
+        }
     
     
     
