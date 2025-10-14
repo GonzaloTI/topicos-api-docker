@@ -377,7 +377,6 @@ class TaskWorker(threading.Thread):
         }
     
     
-    
     def _process_entity_data(self, Modelo, data):
         """Procesar datos de entrada, manejando relaciones y tipos especiales"""
         processed_data = {}

@@ -371,6 +371,77 @@ def obtener_resultado_por_id(nombre_cola: str, id_tarea: str):
         "id_tarea": id_tarea
     }), 404
 
+from flask import jsonify
+
+@app.get("/colas/<nombre_cola>/resultados_estados/<id_tarea>")
+def obtener_resultado_por_id_porestados(nombre_cola: str, id_tarea: str):
+    try:
+        # 1) Validar cola
+        slot = getattr(colamanager, "_get_slot", None)
+        slot = slot(nombre_cola) if callable(slot) else None
+
+        if not slot:
+            # Cola no existe -> lo consideramos 'error' pero siempre 200
+            return jsonify({
+                "cola": nombre_cola,
+                "id_tarea": id_tarea,
+                "estado": "error",
+                "resultado": None,
+                "mensaje": f"cola '{nombre_cola}' no existe"
+            }), 200
+
+        # 2) Consultar resultado
+        try:
+            resultado = slot.cola.obtener_resultado(id_tarea)
+        except Exception as e:
+            # Error al obtener el resultado
+            return jsonify({
+                "cola": nombre_cola,
+                "id_tarea": id_tarea,
+                "estado": "error",
+                "resultado": {"error": str(e)},
+                "mensaje": "Error al obtener el resultado"
+            }), 200
+
+        # 3) Armar respuesta según el caso
+        if resultado is None:
+            # Aún no disponible
+            return jsonify({
+                "cola": nombre_cola,
+                "id_tarea": id_tarea,
+                "estado": "espera",
+                "resultado": None,
+                "mensaje": "Respuesta aún no disponible"
+            }), 200
+
+        # Si la estructura que guardas en 'resultado' ya trae un campo de error
+        if isinstance(resultado, dict) and "error" in resultado:
+            return jsonify({
+                "cola": nombre_cola,
+                "id_tarea": id_tarea,
+                "estado": "error",
+                "resultado": resultado,
+                "mensaje": "La tarea terminó con error"
+            }), 200
+
+        # Caso normal: completado
+        return jsonify({
+            "cola": nombre_cola,
+            "id_tarea": id_tarea,
+            "estado": "completado",
+            "resultado": resultado,
+            "mensaje": "OK"
+        }), 200
+
+    except Exception as e:
+        # Falla inesperada en la propia API
+        return jsonify({
+            "cola": nombre_cola,
+            "id_tarea": id_tarea,
+            "estado": "error",
+            "resultado": {"error": str(e)},
+            "mensaje": "Error inesperado en el endpoint"
+        }), 200
 
 
 
