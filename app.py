@@ -31,6 +31,13 @@ from task_manager import WorkerManager
 
 from flask_cors import CORS
 
+import logging
+from logging.handlers import RotatingFileHandler
+from flask import Flask, jsonify, send_file
+import os
+
+from app_except import AppError
+
 
 
 app = Flask(__name__)
@@ -62,6 +69,24 @@ REDIS_HOST = "localhost"     # ej: "54.210.xxx.xxx"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "contraseniasegura2025"
 '''
+
+
+LOG_FILE = "app.log"
+
+# Crea el manejador con rotación (5 MB x 3 archivos)
+handler = RotatingFileHandler(
+    LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+)
+
+formatter = logging.Formatter(
+    "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+)
+handler.setFormatter(formatter)
+
+logger = logging.getLogger("cola_logger")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
 
 cola = Cola2(
     redis_host=REDIS_HOST,
@@ -371,7 +396,7 @@ def obtener_resultado_por_id(nombre_cola: str, id_tarea: str):
         "id_tarea": id_tarea
     }), 404
 
-from flask import jsonify
+
 
 @app.get("/colas/<nombre_cola>/resultados_estados/<id_tarea>")
 def obtener_resultado_por_id_porestados(nombre_cola: str, id_tarea: str):
@@ -442,7 +467,124 @@ def obtener_resultado_por_id_porestados(nombre_cola: str, id_tarea: str):
             "resultado": {"error": str(e)},
             "mensaje": "Error inesperado en el endpoint"
         }), 200
+#logg errores , 
 
+
+
+# user 2 , web movile, los dos incriben, en fis 1 , 
+# al menos 2 excepciones y ver los logs
+
+
+@app.get("/colas/<nombre_cola>/resultados_estados2/<id_tarea>")
+def obtener_resultado_por_id_porestados2(nombre_cola: str, id_tarea: str):
+    try:
+        logger.info(f"Consultando cola='{nombre_cola}', id_tarea='{id_tarea}'")
+
+        # 1) Validar disponibilidad del manager/slot
+        slot_getter = getattr(colamanager, "_get_slot", None)
+        if not callable(slot_getter):
+            raise AppError(
+                "Administrador de colas no disponible.",
+                error_code="QUEUE_MANAGER_MISSING",
+                status_code=503
+            )
+
+        slot = slot_getter(nombre_cola)
+        if not slot:
+            raise AppError(
+                f"Cola '{nombre_cola}' no existe.",
+                error_code="QUEUE_NOT_FOUND",
+                status_code=404
+            )
+
+        # 2) Consultar resultado (si falla, envolver como AppError)
+        try:
+            resultado = slot.cola.obtener_resultado(id_tarea)
+            logger.info(f"Resultado obtenido para tarea '{id_tarea}':")
+        except Exception as e:
+            logger.error(f"Error al obtener resultado de '{id_tarea}': {e}")
+            raise AppError(
+                "Error al obtener el resultado de la tarea.",
+                error_code="TASK_RESULT_FETCH_ERROR",
+                status_code=400
+            ) from e
+
+        # 3) Armar respuesta según el caso
+        if resultado is None:
+            logger.info(f"Tarea '{id_tarea}' aún en proceso en cola '{nombre_cola}'.")
+            return jsonify({
+                "cola": nombre_cola,
+                "id_tarea": id_tarea,
+                "estado": "espera",
+                "resultado": None,
+                "mensaje": "Respuesta aún no disponible"
+            }), 202
+
+        if isinstance(resultado, dict) and "error" in resultado:
+            # Si tu cola ya empaqueta el error, puedes incluirlo en 'resultado'
+            logger.error(f"Tarea '{id_tarea}' terminó con error: {resultado.get('error')}")
+            raise AppError(
+                "La tarea terminó con error.",
+                error_code= resultado,
+                status_code=422
+            )
+
+        logger.info(f"Tarea '{id_tarea}' completada exitosamente en cola '{nombre_cola}'.")
+        return jsonify({
+            "cola": nombre_cola,
+            "id_tarea": id_tarea,
+            "estado": "completado",
+            "resultado": resultado,
+            "mensaje": "OK"
+        }), 201  # GET exitoso → 200
+
+    except AppError as e:
+        logger.warning(f"AppError {e.error_code}: {e}")
+        return jsonify({
+            "cola": nombre_cola,
+            "id_tarea": id_tarea,
+            "estado": "error",
+            "resultado": e.error_code,
+            "error": {
+                "code": e.error_code,
+                "message": str(e)
+            }
+        }), e.status_code
+
+    except Exception as e:
+        logger.exception("Error inesperado en el endpoint")
+        return jsonify({
+            "cola": nombre_cola,
+            "id_tarea": id_tarea,
+            "estado": "error",
+            "resultado": None,
+            "error": {
+                "code": "UNEXPECTED_ERROR",
+                "message": "Error interno del servidor"
+            }
+        }), 500
+        
+#logg errores , 
+# Dos except: primero lo específico (AppError), luego lo genérico (Exception). Orden importa.
+
+# Códigos HTTP:
+# 404 si la cola no existe,
+# 400 si falló obtener el resultado (input/estado inválido),
+# 422 si la tarea terminó con error propio,
+# 202 si sigue en proceso,
+# 201 si finalizó OK,
+# 500 para fallos inesperados.
+# from e al relanzar preserva el traceback original.
+
+
+@app.get("/logs")
+def ver_logs():
+    """Devuelve el archivo de logs si existe"""
+    if os.path.exists(LOG_FILE):
+        logger.info(" Acceso al archivo de logs solicitado.")
+        return send_file(LOG_FILE, mimetype="text/plain")
+    else:
+        return jsonify({"mensaje": "No hay logs disponibles"}), 404
 
 
 
