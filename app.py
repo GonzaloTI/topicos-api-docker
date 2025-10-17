@@ -53,7 +53,7 @@ app = Flask(__name__)
 )'''
 dborm = DatabaseORM(
     user="postgres",
-    password="pgadmin123",
+    password="pgadmin",
     host="localhost",
     database="topicosflask2"
 )
@@ -2197,6 +2197,7 @@ def inscripcionmaterialist():
 def inscripcionmaterialistasync():
     
     data = request.json
+    print(data)
     try:
         dto = InscripcionMasivaDTO(
             fecha=datetime.date.fromisoformat(data["fecha"]) if "fecha" in data else None,

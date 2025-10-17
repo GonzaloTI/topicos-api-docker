@@ -12,7 +12,10 @@ from pony.orm import db_session, commit
 from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
 from tarea import Tarea, Metodo, Estado
 from cola2 import Cola2
+import logging
 
+logger = logging.getLogger("cola_logger.manager")  # o logging.getLogger("cola_logger").getChild("manager")
+# NO agregues handlers aquí. Hereda el RotatingFileHandler de cola_logger y escribe en app.log
 
 class WorkerManager:
     def __init__(self, cola2: Cola2, dborm, num_workers: int = 1, bzpop_timeout: int = 1):
