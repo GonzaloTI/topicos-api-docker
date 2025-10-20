@@ -1,48 +1,174 @@
-2025-10-14 19:29:17,305 [INFO] cola_logger -  Consultando cola='cola_1', id_tarea='ddb68dd3-f760-436d-bf97-4d7e9c443656'
-2025-10-14 19:29:17,322 [INFO] cola_logger -  Resultado obtenido para tarea 'ddb68dd3-f760-436d-bf97-4d7e9c443656': None
-2025-10-14 19:29:17,323 [INFO] cola_logger - Tarea 'ddb68dd3-f760-436d-bf97-4d7e9c443656' aún en proceso en cola 'cola_1'.
-2025-10-14 19:30:06,843 [INFO] cola_logger -  Acceso al archivo de logs solicitado.
-2025-10-15 16:12:41,986 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='ddb68dd3-f760-436d-bf97-4d7e9c443656'
-2025-10-15 16:12:42,003 [INFO] cola_logger - Resultado obtenido para tarea 'ddb68dd3-f760-436d-bf97-4d7e9c443656':
-2025-10-15 16:12:42,004 [ERROR] cola_logger - Tarea 'ddb68dd3-f760-436d-bf97-4d7e9c443656' terminó con error: No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)
-2025-10-15 16:12:42,005 [WARNING] cola_logger - AppError TASK_FAILED: La tarea terminó con error.
-2025-10-15 16:13:23,850 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='b5de700a-edce-4a88-a147-e78003b38b66'
-2025-10-15 16:13:23,860 [INFO] cola_logger - Resultado obtenido para tarea 'b5de700a-edce-4a88-a147-e78003b38b66':
-2025-10-15 16:13:23,861 [INFO] cola_logger - Tarea 'b5de700a-edce-4a88-a147-e78003b38b66' completada exitosamente en cola 'cola_1'.
-2025-10-15 16:13:51,300 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='6d245d61-ade2-49aa-bf77-c17d03c422a7'
-2025-10-15 16:13:51,305 [INFO] cola_logger - Resultado obtenido para tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7':
-2025-10-15 16:13:51,306 [ERROR] cola_logger - Tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7' terminó con error: No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)
-2025-10-15 16:13:51,307 [WARNING] cola_logger - AppError TASK_FAILED: La tarea terminó con error.
-2025-10-15 16:19:12,043 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='6d245d61-ade2-49aa-bf77-c17d03c422a7'
-2025-10-15 16:19:12,054 [INFO] cola_logger - Resultado obtenido para tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7':
-2025-10-15 16:19:12,055 [ERROR] cola_logger - Tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7' terminó con error: No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)
-2025-10-15 16:19:12,056 [WARNING] cola_logger - AppError {'error': "No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)"}: La tarea terminó con error.
-2025-10-15 16:22:59,150 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='6d245d61-ade2-49aa-bf77-c17d03c422a7'
-2025-10-15 16:22:59,172 [INFO] cola_logger - Resultado obtenido para tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7':
-2025-10-15 16:22:59,173 [ERROR] cola_logger - Tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7' terminó con error: No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)
-2025-10-15 16:22:59,174 [WARNING] cola_logger - AppError {'error': "No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)"}: La tarea terminó con error.
-2025-10-15 16:23:14,364 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='6d245d61-ade2-49aa-bf77-c17d03c422a7'
-2025-10-15 16:23:16,665 [ERROR] cola_logger - Error al obtener resultado de '6d245d61-ade2-49aa-bf77-c17d03c422a7': Error while reading from localhost:6379 : (10054, 'Se ha forzado la interrupción de una conexión existente por el host remoto', None, 10054, None)
-2025-10-15 16:23:16,669 [WARNING] cola_logger - AppError TASK_RESULT_FETCH_ERROR: Error al obtener el resultado de la tarea.
-2025-10-15 16:23:28,290 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='6d245d61-ade2-49aa-bf77-c17d03c422a7'
-2025-10-15 16:23:33,097 [ERROR] cola_logger - Error al obtener resultado de '6d245d61-ade2-49aa-bf77-c17d03c422a7': Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
-2025-10-15 16:23:33,100 [WARNING] cola_logger - AppError TASK_RESULT_FETCH_ERROR: Error al obtener el resultado de la tarea.
-2025-10-15 16:23:42,551 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='6d245d61-ade2-49aa-bf77-c17d03c422a7'
-2025-10-15 16:23:42,759 [INFO] cola_logger - Resultado obtenido para tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7':
-2025-10-15 16:23:42,761 [ERROR] cola_logger - Tarea '6d245d61-ade2-49aa-bf77-c17d03c422a7' terminó con error: No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)
-2025-10-15 16:23:42,765 [WARNING] cola_logger - AppError {'error': "No hay cupos disponibles en el grupo 'Grupo A - Estructuras' (ID: 3)"}: La tarea terminó con error.
-2025-10-15 16:23:58,261 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='85f2c647-3a84-41c9-93ba-499cc1bfa4e7'
-2025-10-15 16:23:58,311 [INFO] cola_logger - Resultado obtenido para tarea '85f2c647-3a84-41c9-93ba-499cc1bfa4e7':
-2025-10-15 16:23:58,311 [INFO] cola_logger - Tarea '85f2c647-3a84-41c9-93ba-499cc1bfa4e7' completada exitosamente en cola 'cola_1'.
-2025-10-15 16:25:02,481 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='85f2c647-3a80-41c9-93ba-499cc1bfa4e7'
-2025-10-15 16:25:02,485 [INFO] cola_logger - Resultado obtenido para tarea '85f2c647-3a80-41c9-93ba-499cc1bfa4e7':
-2025-10-15 16:25:02,487 [INFO] cola_logger - Tarea '85f2c647-3a80-41c9-93ba-499cc1bfa4e7' aún en proceso en cola 'cola_1'.
-2025-10-15 16:25:11,467 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='85f2c647-3a80-41c9-93ba-499cc1777fa4e7'
-2025-10-15 16:25:11,471 [INFO] cola_logger - Resultado obtenido para tarea '85f2c647-3a80-41c9-93ba-499cc1777fa4e7':
-2025-10-15 16:25:11,472 [INFO] cola_logger - Tarea '85f2c647-3a80-41c9-93ba-499cc1777fa4e7' aún en proceso en cola 'cola_1'.
-2025-10-15 16:25:29,620 [INFO] cola_logger - Consultando cola='cola6_1', id_tarea='85f2c647-3a80-41c9-93ba-499cc1777fa4e7'
-2025-10-15 16:25:29,621 [WARNING] cola_logger - AppError QUEUE_NOT_FOUND: Cola 'cola6_1' no existe.
-2025-10-15 16:25:45,984 [INFO] cola_logger - Consultando cola='cola_1', id_tarea='85f2c647-3a80-41c9-93ba-499cc1777fa4e7'
-2025-10-15 16:25:45,987 [INFO] cola_logger - Resultado obtenido para tarea '85f2c647-3a80-41c9-93ba-499cc1777fa4e7':
-2025-10-15 16:25:45,988 [INFO] cola_logger - Tarea '85f2c647-3a80-41c9-93ba-499cc1777fa4e7' aún en proceso en cola 'cola_1'.
-2025-10-15 16:26:52,272 [INFO] cola_logger -  Acceso al archivo de logs solicitado.
+2025-10-19 21:31:32,277 [INFO] __main__ - Iniciando la aplicación Flask...
+2025-10-19 21:31:32,278 [INFO] __main__ - Iniciando la aplicación Flask...
+2025-10-19 21:33:18,986 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:33:20,386 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:33:21,768 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:34:28,106 [INFO] app_logger - Consultando cola='cola_1', id_tarea='79b4bada-04a8-4574-ab7d-f37696692980'
+2025-10-19 21:34:28,107 [INFO] app_logger - Resultado obtenido para tarea '79b4bada-04a8-4574-ab7d-f37696692980':
+2025-10-19 21:34:28,108 [INFO] app_logger - Tarea '79b4bada-04a8-4574-ab7d-f37696692980' aún en proceso en cola 'cola_1'.
+2025-10-19 21:34:38,018 [INFO] app_logger - Consultando cola='cola_1', id_tarea='79b4bada-04a8-4574-ab7d-f37696692980'
+2025-10-19 21:34:38,019 [INFO] app_logger - Resultado obtenido para tarea '79b4bada-04a8-4574-ab7d-f37696692980':
+2025-10-19 21:34:38,020 [INFO] app_logger - Tarea '79b4bada-04a8-4574-ab7d-f37696692980' completada exitosamente en cola 'cola_1'.
+2025-10-19 21:34:44,757 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:34:49,943 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:35:03,494 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:35:12,869 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:35:47,068 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:35:57,858 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:36:05,613 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:36:14,159 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:36:19,743 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:37:16,905 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:37:19,354 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:37:26,733 [INFO] app_logger - Consultando cola='cola_1', id_tarea='b831c418-1036-4f63-b030-24bed5b76b43'
+2025-10-19 21:37:26,735 [INFO] app_logger - Resultado obtenido para tarea 'b831c418-1036-4f63-b030-24bed5b76b43':
+2025-10-19 21:37:26,735 [INFO] app_logger - Tarea 'b831c418-1036-4f63-b030-24bed5b76b43' aún en proceso en cola 'cola_1'.
+2025-10-19 21:37:30,162 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:37:31,348 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:37:32,447 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:37:50,948 [INFO] app_logger - Consultando cola='cola_1', id_tarea='b831c418-1036-4f63-b030-24bed5b76b43'
+2025-10-19 21:37:50,949 [INFO] app_logger - Resultado obtenido para tarea 'b831c418-1036-4f63-b030-24bed5b76b43':
+2025-10-19 21:37:50,950 [INFO] app_logger - Tarea 'b831c418-1036-4f63-b030-24bed5b76b43' completada exitosamente en cola 'cola_1'.
+2025-10-19 21:37:57,868 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:45:08,346 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-19 21:45:08,347 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-19 21:45:08,348 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-19 21:45:08,348 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-19 21:45:24,220 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:45:39,951 [INFO] app_logger - Consultando cola='cola_1', id_tarea='29c4eb5a-c49e-4394-aa2c-e9be407b46fe'
+2025-10-19 21:45:39,953 [INFO] app_logger - Resultado obtenido para tarea '29c4eb5a-c49e-4394-aa2c-e9be407b46fe':
+2025-10-19 21:45:39,953 [INFO] app_logger - Tarea '29c4eb5a-c49e-4394-aa2c-e9be407b46fe' aún en proceso en cola 'cola_1'.
+2025-10-19 21:54:24,954 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-19 21:54:24,955 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-19 21:54:24,956 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-19 21:54:24,956 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-19 21:54:32,488 [INFO] app_logger.manager - Iniciando proceso de inscripción de materias.
+2025-10-19 21:54:32,528 [INFO] app_logger - Consultando cola='cola_1', id_tarea='35ba95a9-84c7-4ce2-83f4-2cc6541a9e2e'
+2025-10-19 21:54:32,530 [INFO] app_logger.manager - Estudiante validado: Carlos Ramírez (ID: 1)
+2025-10-19 21:54:32,530 [INFO] app_logger - Resultado obtenido para tarea '35ba95a9-84c7-4ce2-83f4-2cc6541a9e2e':
+2025-10-19 21:54:32,530 [INFO] app_logger - Tarea '35ba95a9-84c7-4ce2-83f4-2cc6541a9e2e' aún en proceso en cola 'cola_1'.
+2025-10-19 21:54:32,532 [INFO] app_logger.manager - Período validado: ID 1
+2025-10-19 21:54:32,532 [INFO] app_logger.manager - Procesando inscripción para 1 grupos: [5]
+2025-10-19 21:54:32,532 [INFO] app_logger.manager - Validando grupos y cupos...
+2025-10-19 21:54:32,534 [INFO] app_logger.manager - Todos los grupos y cupos han sido validados correctamente.
+2025-10-19 21:54:32,534 [INFO] app_logger.manager - Creando registro de inscripción para 'Carlos Ramírez'.
+2025-10-19 21:54:32,535 [INFO] app_logger.manager - Asociando materias a la inscripción y actualizando cupos...
+2025-10-19 21:54:32,540 [INFO] app_logger.manager - Transacción confirmada. Inscripción ID: 53 con 1 materias.
+2025-10-19 21:54:33,900 [INFO] app_logger - Consultando cola='cola_1', id_tarea='35ba95a9-84c7-4ce2-83f4-2cc6541a9e2e'
+2025-10-19 21:54:33,901 [INFO] app_logger - Resultado obtenido para tarea '35ba95a9-84c7-4ce2-83f4-2cc6541a9e2e':
+2025-10-19 21:54:33,902 [INFO] app_logger - Tarea '35ba95a9-84c7-4ce2-83f4-2cc6541a9e2e' completada exitosamente en cola 'cola_1'.
+2025-10-19 21:54:55,090 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 21:57:58,102 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-19 21:57:58,103 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-19 21:57:58,105 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-19 21:57:58,105 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-19 21:58:04,849 [INFO] app_logger.manager - Iniciando proceso de inscripción de materias.
+2025-10-19 21:58:04,891 [INFO] app_logger.manager - Estudiante validado: Carlos Ramírez (ID: 1) (Registro : 12345678)
+2025-10-19 21:58:04,894 [INFO] app_logger.manager - Período validado: ID 1
+2025-10-19 21:58:04,894 [INFO] app_logger.manager - Procesando inscripción para 2 grupos: [5, 4]
+2025-10-19 21:58:04,894 [INFO] app_logger.manager - Validando grupos y cupos...
+2025-10-19 21:58:04,898 [INFO] app_logger.manager - Todos los grupos y cupos han sido validados correctamente.
+2025-10-19 21:58:04,898 [INFO] app_logger.manager - Creando registro de inscripción para 'Carlos Ramírez'.
+2025-10-19 21:58:04,898 [INFO] app_logger.manager - Asociando materias a la inscripción y actualizando cupos...
+2025-10-19 21:58:04,899 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2373dac7-83da-4b1d-aabb-b1456923badf'
+2025-10-19 21:58:04,901 [INFO] app_logger - Resultado obtenido para tarea '2373dac7-83da-4b1d-aabb-b1456923badf':
+2025-10-19 21:58:04,901 [INFO] app_logger - Tarea '2373dac7-83da-4b1d-aabb-b1456923badf' aún en proceso en cola 'cola_1'.
+2025-10-19 21:58:04,905 [INFO] app_logger.manager - Transacción confirmada. Inscripción ID: 54 con 2 materias.
+2025-10-19 21:58:06,464 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2373dac7-83da-4b1d-aabb-b1456923badf'
+2025-10-19 21:58:06,466 [INFO] app_logger - Resultado obtenido para tarea '2373dac7-83da-4b1d-aabb-b1456923badf':
+2025-10-19 21:58:06,467 [INFO] app_logger - Tarea '2373dac7-83da-4b1d-aabb-b1456923badf' completada exitosamente en cola 'cola_1'.
+2025-10-19 22:00:25,085 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 22:00:56,872 [INFO] app_logger.manager - Worker-1 pausando
+2025-10-19 22:00:56,873 [INFO] app_logger.manager - Todos los workers pausados
+2025-10-19 22:01:02,349 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:02,350 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:02,351 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:32,405 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:32,406 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:32,406 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:32,904 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:32,905 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:32,905 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:33,407 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:33,409 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:33,410 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:33,906 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:33,908 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:33,909 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:34,406 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:34,409 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:34,409 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:34,907 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:34,910 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:34,911 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:35,402 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:35,403 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:35,403 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:35,904 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:35,906 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:35,906 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:36,403 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:36,403 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:36,404 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:36,907 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:36,909 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:36,910 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:37,405 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:37,407 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:37,407 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:37,916 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:37,920 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:37,921 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:38,403 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:38,404 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:38,405 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:41,005 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:41,007 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:41,007 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:41,512 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:41,513 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:41,513 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:42,009 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:42,010 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:42,011 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:42,508 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:42,509 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:42,510 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:43,020 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:43,021 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:43,022 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:43,519 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:43,523 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:43,524 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:44,014 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:44,016 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:44,017 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:44,510 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:44,511 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:44,511 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:45,008 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:45,009 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:45,009 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:45,506 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:45,507 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:45,507 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:46,012 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:46,013 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:46,013 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:46,508 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:46,510 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:46,510 [INFO] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' aún en proceso en cola 'cola_1'.
+2025-10-19 22:01:46,896 [INFO] app_logger.manager - Worker-1 reanudado...
+2025-10-19 22:01:46,897 [INFO] app_logger.manager - Todos los workers reanudados
+2025-10-19 22:01:46,898 [INFO] app_logger.manager - Iniciando proceso de inscripción de materias.
+2025-10-19 22:01:46,900 [INFO] app_logger.manager - Estudiante validado: Carlos Ramírez (ID: 1) (Registro : 12345678)
+2025-10-19 22:01:46,901 [INFO] app_logger.manager - Período validado: ID 1
+2025-10-19 22:01:46,901 [INFO] app_logger.manager - Procesando inscripción para 2 grupos: [5, 4]
+2025-10-19 22:01:46,902 [INFO] app_logger.manager - Validando grupos y cupos...
+2025-10-19 22:01:46,904 [ERROR] app_logger.manager - Error de validación durante la inscripción: No hay cupos disponibles en el grupo 'Grupo A - SO' (ID: 5)
+2025-10-19 22:01:47,020 [INFO] app_logger - Consultando cola='cola_1', id_tarea='2d542106-3f5a-4235-b29a-6e092b29c3e2'
+2025-10-19 22:01:47,021 [INFO] app_logger - Resultado obtenido para tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2':
+2025-10-19 22:01:47,021 [ERROR] app_logger - Tarea '2d542106-3f5a-4235-b29a-6e092b29c3e2' terminó con error: No hay cupos disponibles en el grupo 'Grupo A - SO' (ID: 5)
+2025-10-19 22:01:47,021 [WARNING] app_logger - AppError {'error': "No hay cupos disponibles en el grupo 'Grupo A - SO' (ID: 5)"}: La tarea terminó con error.
+2025-10-19 22:02:05,580 [INFO] app_logger - Solicitud de archivo de logs recibida
+2025-10-19 22:02:25,595 [INFO] app_logger - Solicitud de archivo de logs recibida

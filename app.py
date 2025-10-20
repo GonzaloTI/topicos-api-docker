@@ -37,7 +37,7 @@ from flask import Flask, jsonify, send_file
 import os
 
 from app_except import AppError
-
+from logger_class import Logger
 
 
 app = Flask(__name__)
@@ -70,22 +70,10 @@ REDIS_PORT = 6379
 REDIS_PASSWORD = "contraseniasegura2025"
 '''
 
-
 LOG_FILE = "app.log"
 
-# Crea el manejador con rotación (5 MB x 3 archivos)
-handler = RotatingFileHandler(
-    LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
-)
+logger = Logger.get_logger(name="app_logger", log_file=LOG_FILE)
 
-formatter = logging.Formatter(
-    "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
-)
-handler.setFormatter(formatter)
-
-logger = logging.getLogger("cola_logger")
-logger.setLevel(logging.INFO)
-logger.addHandler(handler)
 
 
 cola = Cola2(
@@ -580,8 +568,8 @@ def obtener_resultado_por_id_porestados2(nombre_cola: str, id_tarea: str):
 @app.get("/logs")
 def ver_logs():
     """Devuelve el archivo de logs si existe"""
+    logger.info("Solicitud de archivo de logs recibida")
     if os.path.exists(LOG_FILE):
-        logger.info(" Acceso al archivo de logs solicitado.")
         return send_file(LOG_FILE, mimetype="text/plain")
     else:
         return jsonify({"mensaje": "No hay logs disponibles"}), 404

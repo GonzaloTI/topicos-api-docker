@@ -2,19 +2,15 @@
 from datetime import datetime, date
 import datetime
 import json
-import base64
-from venv import logger
-import cloudpickle
 import threading
 from typing import Optional, Dict, Any, Callable
 
-from pony.orm import db_session, commit
-from DTO.PlanDeEstudioDTO import PlanDeEstudioDTO
-from tarea import Tarea, Metodo, Estado
+from pony.orm import db_session, commit, rollback
+from tarea import Tarea, Metodo
 from cola2 import Cola2
 import logging
 
-logger = logging.getLogger("cola_logger.manager")  # o logging.getLogger("cola_logger").getChild("manager")
+logger = logging.getLogger("app_logger.manager")  # o logging.getLogger("cola_logger").getChild("manager")
 # NO agregues handlers aquí. Hereda el RotatingFileHandler de cola_logger y escribe en app.log
 
 class WorkerManager:
@@ -203,7 +199,7 @@ class TaskWorker(threading.Thread):
         entity_name = dto_data.get("__entity__")
         
         if entity_name == "InscripcionMateriaList":
-            return self._procesar_inscripcion_materia2(dto_data)
+            return self._procesar_inscripcion_materia3(dto_data)
     
         
         # Obtener el modelo
@@ -279,37 +275,6 @@ class TaskWorker(threading.Thread):
         return None
 
 
-    
-    @db_session
-    def _procesar_inscripcion_materia(self, dto_data: dict):
-        print("entrando por inscripcion")
-        """Proceso especial para InscripcionMateria: valida cupos y descuenta"""
-        InscripcionMateria = self.dborm.db.InscripcionMateria
-        Inscripcion = self.dborm.db.Inscripcion
-        GrupoMateria = self.dborm.db.GrupoMateria
-
-        # Obtener inscripción y grupo
-        inscripcion = Inscripcion.get(id=dto_data.get("inscripcion_id"))
-        grupo = GrupoMateria.get(id=dto_data.get("grupo_id"))
-        
-        if not inscripcion or not grupo:
-            raise ValueError("Inscripcion o GrupoMateria no encontrado")
-        
-        if grupo.cupo is None or grupo.cupo <= 0:
-            raise ValueError("No hay cupos disponibles en este grupo")
-        
-        # Crear InscripcionMateria
-        im = InscripcionMateria(inscripcion=inscripcion, grupo=grupo)
-        
-        # Descontar cupo
-        grupo.cupo -= 1
-        commit()
-        
-        return {
-            "id": im.id,
-            "inscripcion": {"id": inscripcion.id, "estudiante": inscripcion.estudiante.nombre},
-            "grupo": {"id": grupo.id, "nombre": grupo.nombre, "cupo_restante": grupo.cupo}
-        }
 
     @db_session
     def _procesar_inscripcion_materia2(self, dto_data: dict):
@@ -378,6 +343,92 @@ class TaskWorker(threading.Thread):
             },
             "materias_inscritas": materias_inscritas_info
         }
+        
+    @db_session
+    def _procesar_inscripcion_materia3(self, dto_data: dict):
+        logger.info("Iniciando proceso de inscripción de materias.")
+        logger.debug(f"Datos recibidos: {dto_data}")
+
+        try:
+            # 1. Obtener las entidades de la base de datos
+            Inscripcion = self.dborm.db.Inscripcion
+            Estudiante = self.dborm.db.Estudiante
+            Periodo = self.dborm.db.Periodo
+            InscripcionMateria = self.dborm.db.InscripcionMateria
+            GrupoMateria = self.dborm.db.GrupoMateria
+
+            # 2. Validaciones iniciales
+            estudiante_registro = dto_data.get("estudiante_registro")
+            estudiante = Estudiante.get(registro=estudiante_registro)
+            if not estudiante:
+                raise ValueError(f"Estudiante no encontrado con registro: {estudiante_registro}")
+            logger.info(f"Estudiante validado: {estudiante.nombre} (ID: {estudiante.id}) (Registro : {estudiante_registro})")
+
+            periodo_id = dto_data.get("periodo_id")
+            periodo = Periodo.get(id=periodo_id)
+            if not periodo:
+                raise ValueError(f"Período no encontrado con ID: {periodo_id}")
+            logger.info(f"Período validado: ID {periodo.id}")
+
+            grupos_ids = dto_data.get("grupos_ids", [])
+            if not isinstance(grupos_ids, list) or not grupos_ids:
+                raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
+            logger.info(f"Procesando inscripción para {len(grupos_ids)} grupos: {grupos_ids}")
+
+            # 3. Validar todos los grupos y sus cupos ANTES de crear cualquier registro
+            grupos_a_inscribir = []
+            logger.info("Validando grupos y cupos...")
+            for grupo_id in grupos_ids:
+                grupo = GrupoMateria.get(id=grupo_id)
+                if not grupo:
+                    raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+                if grupo.cupo is None or grupo.cupo <= 0:
+                    raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
+                grupos_a_inscribir.append(grupo)
+            logger.info("Todos los grupos y cupos han sido validados correctamente.")
+
+            # 4. Crear la inscripción principal
+            logger.info(f"Creando registro de inscripción para '{estudiante.nombre}'.")
+            nueva_inscripcion = Inscripcion(
+                fecha=date.today(),
+                estudiante=estudiante,
+                periodo=periodo
+            )
+
+            # 5. Crear las inscripciones a materias y descontar los cupos
+            logger.info("Asociando materias a la inscripción y actualizando cupos...")
+            materias_inscritas_info = []
+            for grupo in grupos_a_inscribir:
+                InscripcionMateria(inscripcion=nueva_inscripcion, grupo=grupo)
+                logger.debug(f"Descontando cupo para grupo '{grupo.nombre}'. Cupo anterior: {grupo.cupo}")
+                grupo.cupo -= 1
+                materias_inscritas_info.append({
+                    "id_grupo": grupo.id,
+                    "nombre_grupo": grupo.nombre,
+                    "cupo_restante": grupo.cupo
+                })
+
+            # 6. Confirmar la transacción
+            commit()
+            logger.info(f"Transacción confirmada. Inscripción ID: {nueva_inscripcion.id} con {len(materias_inscritas_info)} materias.")
+
+            # 7. Devolver el resultado de éxito
+            return {
+                "msg": "Inscripción completada exitosamente.",
+                "inscripcion": {
+                    "id": nueva_inscripcion.id,
+                    "fecha": str(nueva_inscripcion.fecha),
+                },
+                "materias_inscritas": materias_inscritas_info
+            }
+        except ValueError as e:
+            logger.error(f"Error de validación durante la inscripción: {e}")
+            rollback() # Deshacer cualquier cambio en la base de datos
+            return {"error": str(e)}
+        except Exception as e:
+            logger.critical(f"Error inesperado durante el proceso de inscripción: {e}", exc_info=True)
+            rollback() # Deshacer cualquier cambio
+            return {"error": "Ocurrió un error inesperado en el servidor."}
     
     
     def _process_entity_data(self, Modelo, data):
