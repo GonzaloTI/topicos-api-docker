@@ -53,7 +53,7 @@ app = Flask(__name__)
 )'''
 dborm = DatabaseORM(
     user="postgres",
-    password="pgadmin",
+    password="pgadmin123",
     host="localhost",
     database="topicosflask2"
 )
@@ -99,7 +99,7 @@ colamanager.create_many(1,num_workers=1)
 
 worker_manager = WorkerManager(cola2=cola3, dborm=dborm, num_workers=1, bzpop_timeout=1)
 worker_manager.start()
-
+ 
 
 
 def token_required(f):
@@ -716,6 +716,75 @@ def initdb():
 
 # Rutas Login
 # =========================
+@app.route("/Seeders", methods=["POST"])
+@db_session
+def Seeders():
+    """Ruta inicializadora que inserta datos de ejemplo"""
+    try:
+        # Acceso rápido a entidades
+        Carrera = dborm.db.Carrera
+        PlanDeEstudio = dborm.db.PlanDeEstudio
+        Nivel = dborm.db.Nivel
+        Materia = dborm.db.Materia
+        Prerequisito = dborm.db.Prerequisito
+        
+
+        # Carrera
+        carrera = Carrera(
+            nombre="Ingeniería en Sistemas",
+            codigo="187-3",
+            otros="Carrera orientada a software y sistemas"
+        )
+
+        # Plan de estudio
+        plan = PlanDeEstudio(
+            nombre="Plan ing sistemas 2025",
+            codigo="PLN-300",
+            fecha=datetime.date(2025, 1, 1),
+            estado="Vigente",
+            carrera=carrera
+        )
+
+        # Niveles/Semestres
+        niveles = [Nivel(nivel=i) for i in range(1, 10)]  # Semestre 1 a 9
+
+        # Materias (siglas basadas en la imagen)
+        materias = [
+            Materia(sigla="MAT101", nombre="Cálculo I", creditos=5, plan=plan, nivel=niveles[0]),
+            Materia(sigla="INF119", nombre="Estructuras Discretas", creditos=5, plan=plan, nivel=niveles[0]),
+            Materia(sigla="INF110", nombre="Introducción a la Informática", creditos=5, plan=plan, nivel=niveles[0]),
+            Materia(sigla="FIS100", nombre="Física I", creditos=4, plan=plan, nivel=niveles[0]),
+            Materia(sigla="LIN100", nombre="Inglés Técnico I", creditos=3, plan=plan, nivel=niveles[0]),
+            #4
+            Materia(sigla="MAT102", nombre="Cálculo II", creditos=5, plan=plan, nivel=niveles[1]),
+            Materia(sigla="MAT103", nombre="Álgebra Lineal", creditos=5, plan=plan, nivel=niveles[1]),
+            Materia(sigla="INF120", nombre="Programación I", creditos=5, plan=plan, nivel=niveles[1]),
+            Materia(sigla="FIS102", nombre="Física II", creditos=4, plan=plan, nivel=niveles[1]),
+            Materia(sigla="LIN101", nombre="Inglés Técnico II", creditos=3, plan=plan, nivel=niveles[1]),
+
+        ]
+
+        # Prerrequisitos (ejemplo)
+        Prerequisito(materia=materias[5], materia_requisito=materias[0])  # MAT102 requiere MAT101
+        Prerequisito(materia=materias[6], materia_requisito=materias[1])  # MAT103 requiere INF119
+        Prerequisito(materia=materias[7], materia_requisito=materias[2])  # INF120 requiere INF110
+        Prerequisito(materia=materias[8], materia_requisito=materias[3])  # FIS102 requiere FIS100
+        Prerequisito(materia=materias[9], materia_requisito=materias[4])  # LIN101 requiere LIN100
+        
+       
+        
+        
+
+        # Aquí puedes continuar con todos los prerrequisitos y materias de semestres 6 a 9 según la imagen
+        commit()
+        return {"status": "success", "message": "Base de datos inicializada con el nuevo plan"}
+    except Exception as e: 
+        rollback()  # Revierte todos los cambios si hay error (por ejemplo, llave duplicada)
+        return jsonify({"status": "error", "message": f"Error al insertar datos: {str(e)}"}), 400
+        
+
+
+
 
 @app.route("/login", methods=["POST"])
 @db_session
