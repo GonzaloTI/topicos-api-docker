@@ -18,14 +18,15 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+#COPY app.py .
 
-COPY app.py .
+# COPY ponyorm.py .
 
-COPY ponyorm.py .
+# COPY cola2.py .
 
-COPY cola2.py .
+# COPY DTO /app/DTO
 
-COPY DTO /app/DTO
+COPY . .
 
 EXPOSE 8000
 

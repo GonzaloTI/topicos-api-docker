@@ -1,0 +1,48 @@
+Byte-code compilado y archivos de caché de Python
+
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+Carpetas de entornos virtuales
+
+venv/
+.venv/
+env/
+virtualenv/
+ENV/
+
+Archivos de distribución / empaquetado
+
+build/
+dist/
+*.egg-info/
+*.egg
+
+Archivos de registro (logs)
+
+*.log
+app.log
+
+Archivos de configuración de IDEs y editores
+
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+Archivos del sistema operativo
+
+.DS_Store
+Thumbs.db
+
+Archivos de variables de entorno (¡nunca subir secretos!)
+
+.env
+.env.*
+
+Archivos de test
+
+.pytest_cache/
+.tox/
