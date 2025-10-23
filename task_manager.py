@@ -343,7 +343,35 @@ class TaskWorker(threading.Thread):
             },
             "materias_inscritas": materias_inscritas_info
         }
+    
+    def _validar_grupos_y_cupos(self, grupos_ids: list):
+        """
+        Valida que los grupos existan y tengan cupos disponibles.
+        Retorna la lista de objetos 'GrupoMateria' si todo es correcto.
+        Lanza un ValueError si algo falla.
+        """
+        GrupoMateria = self.dborm.db.GrupoMateria
+        grupos_a_inscribir = []
         
+        self.logger.info("Validando grupos y cupos...")
+        
+        if not isinstance(grupos_ids, list) or not grupos_ids:
+            raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
+        
+        for grupo_id in grupos_ids:
+            # ESTA LÍNEA (GrupoMateria.get) ES LA QUE "MOCKEAREMOS" EN LA PRUEBA
+            grupo = GrupoMateria.get(id=grupo_id)
+            
+            if not grupo:
+                raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+            if grupo.cupo is None or grupo.cupo <= 0:
+                raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
+            
+            grupos_a_inscribir.append(grupo)
+            
+        self.logger.info("Todos los grupos y cupos han sido validados correctamente.")
+        return grupos_a_inscribir
+    
     @db_session
     def _procesar_inscripcion_materia3(self, dto_data: dict):
         logger.info("Iniciando proceso de inscripción de materias.")
@@ -376,16 +404,21 @@ class TaskWorker(threading.Thread):
             logger.info(f"Procesando inscripción para {len(grupos_ids)} grupos: {grupos_ids}")
 
             # 3. Validar todos los grupos y sus cupos ANTES de crear cualquier registro
-            grupos_a_inscribir = []
-            logger.info("Validando grupos y cupos...")
-            for grupo_id in grupos_ids:
-                grupo = GrupoMateria.get(id=grupo_id)
-                if not grupo:
-                    raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
-                if grupo.cupo is None or grupo.cupo <= 0:
-                    raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
-                grupos_a_inscribir.append(grupo)
-            logger.info("Todos los grupos y cupos han sido validados correctamente.")
+            # grupos_a_inscribir = []
+            # logger.info("Validando grupos y cupos...")
+            # for grupo_id in grupos_ids:
+            #     grupo = GrupoMateria.get(id=grupo_id)
+            #     if not grupo:
+            #         raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+            #     if grupo.cupo is None or grupo.cupo <= 0:
+            #         raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
+            #     grupos_a_inscribir.append(grupo)
+            # logger.info("Todos los grupos y cupos han sido validados correctamente.")
+
+            # 3. Validar grupos y cupos (LLAMADA A LA NUEVA FUNCIÓN)
+            
+            grupos_a_inscribir = self._validar_grupos_y_cupos(grupos_ids)
+
 
             # 4. Crear la inscripción principal
             logger.info(f"Creando registro de inscripción para '{estudiante.nombre}'.")
