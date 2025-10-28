@@ -23,7 +23,7 @@ from DTO.AulasDTO import AulaDTO
 
 from cola2 import Cola2
 from cola_manager import ColaManager, RedisParams
-from ponyorm import DatabaseORM
+from model_orm.ponyorm import DatabaseORM
 import uuid
 
 from tarea import Tarea,Metodo,Prioridad
@@ -45,30 +45,34 @@ app = Flask(__name__)
 # =========================
 # Configuración de la BD
 # =========================
-'''dborm = DatabaseORM(
-    user="topicos_ytxp_user",
-    password="FR0EU36yrtu6u7HngTa1PxBhIHKnFx16",
-    host="dpg-d2n0rgh5pdvs739dmlug-a.oregon-postgres.render.com",
-    database="topicos_ytxp"
-)'''
+dborm = DatabaseORM(
+    user="topicos",
+    password="KuWI4SHngQeWVtNNiW7xBROdWBphX6K5",
+    host="dpg-d40k08mmcj7s739cj9t0-a.oregon-postgres.render.com",
+    database="topicos_t4hk"
+)
+'''
 dborm = DatabaseORM(
     user="postgres",
     password="pgadmin123",
     host="localhost",
-    database="topicosflask2"
+    database="topicosflask3"
 )
-
+'''
 SECRET_KEY = "mi_clave_secreta"
 
+'''
 REDIS_HOST = "localhost"     # ej: "54.210.xxx.xxx"
+REDIS_PORT = 6379
+REDIS_PASSWORD = "contraseniasegura2025"
+'''
+
+
+
+REDIS_HOST = "18.222.233.236"     # ej: "54.210.xxx.xxx"
 REDIS_PORT = 6379
 REDIS_PASSWORD = "contraseniasegura2025"
 
-'''
-REDIS_HOST = "localhost"     # ej: "54.210.xxx.xxx"
-REDIS_PORT = 6379
-REDIS_PASSWORD = "contraseniasegura2025"
-'''
 
 LOG_FILE = "app.log"
 
@@ -727,6 +731,12 @@ def Seeders():
         Nivel = dborm.db.Nivel
         Materia = dborm.db.Materia
         Prerequisito = dborm.db.Prerequisito
+        Docente =dborm.db.Docente
+        Periodo=dborm.db.Periodo
+        GrupoMateria=dborm.db.GrupoMateria
+        Horario=dborm.db.Horario
+        Aula=dborm.db.Aula
+        Modulo=dborm.db.Modulo
         
 
         # Carrera
@@ -771,9 +781,297 @@ def Seeders():
         Prerequisito(materia=materias[8], materia_requisito=materias[3])  # FIS102 requiere FIS100
         Prerequisito(materia=materias[9], materia_requisito=materias[4])  # LIN101 requiere LIN100
         
-       
+        
+        # =========================
+        # SEMESTRE 3  (nivel = 3)
+        # =========================
+        m_mat207 = Materia(sigla="MAT207", nombre="Ecuaciones Diferenciales",       creditos=5, plan=plan, nivel=niveles[2])
+        m_inf210 = Materia(sigla="INF210", nombre="Programación II",                creditos=5, plan=plan, nivel=niveles[2])
+        m_inf211 = Materia(sigla="INF211", nombre="Arquitectura de Computadoras",   creditos=5, plan=plan, nivel=niveles[2])
+        m_fis200 = Materia(sigla="FIS200", nombre="Física III",                     creditos=4, plan=plan, nivel=niveles[2])
+        m_adm100 = Materia(sigla="ADM100", nombre="Administración",                 creditos=3, plan=plan, nivel=niveles[2])
+
+        materias += [m_mat207, m_inf210, m_inf211, m_fis200, m_adm100]
+
+        # =========================
+        # SEMESTRE 4  (nivel = 4)
+        # =========================
+        m_mat202 = Materia(sigla="MAT202", nombre="Probabilidad y Estadística I",   creditos=4, plan=plan, nivel=niveles[3])
+        m_mat205 = Materia(sigla="MAT205", nombre="Métodos Numéricos",              creditos=4, plan=plan, nivel=niveles[3])
+        m_inf220 = Materia(sigla="INF220", nombre="Estructura de Datos I",          creditos=5, plan=plan, nivel=niveles[3])
+        m_inf221 = Materia(sigla="INF221", nombre="Programación Ensamblador",       creditos=5, plan=plan, nivel=niveles[3])
+        m_adm200 = Materia(sigla="ADM200", nombre="Contabilidad",                   creditos=3, plan=plan, nivel=niveles[3])
+
+        materias += [m_mat202, m_mat205, m_inf220, m_inf221, m_adm200]
+
+        # =========================
+        # Helper por sigla (evita depender de índices)
+        # =========================
+        def _M(sigla: str):
+            for m in materias:
+                if m.sigla == sigla:
+                    return m
+            raise ValueError(f"Materia con sigla {sigla} no encontrada; revisa el orden de creación.")
+
+        # =========================
+        # PRERREQUISITOS — Semestre 3 (según el diagrama)
+        # =========================
+        # MAT207 (Ecuaciones Diferenciales) ← MAT102 (Cálculo II)
+        Prerequisito(materia=_M("MAT207"), materia_requisito=_M("MAT102"))
+
+        # INF210 (Programación II) ← INF120 (Programación I)
+        Prerequisito(materia=_M("INF210"), materia_requisito=_M("INF120"))
+        Prerequisito(materia=_M("INF210"), materia_requisito=_M("MAT103"))
+
+        # INF211 (Arquitectura de Computadoras) ← INF120 (Programación I)
+        Prerequisito(materia=_M("INF211"), materia_requisito=_M("INF120"))
+
+        # FIS200 (Física III) ← FIS102 (Física II)
+        Prerequisito(materia=_M("FIS200"), materia_requisito=_M("FIS102"))
+
+        # ADM100 (Administración) — sin prerrequisito explícito en el plan (queda libre)
+
+        # =========================
+        # PRERREQUISITOS — Semestre 4 (según el diagrama)
+        # =========================
+        # MAT202 (Prob. y Estadística I) ← MAT102 (Cálculo II)
+        Prerequisito(materia=_M("MAT202"), materia_requisito=_M("MAT102"))
+
+        # MAT205 (Métodos Numéricos) ← MAT102 (Cálculo II) y MAT103 (Álgebra Lineal)
+        Prerequisito(materia=_M("MAT205"), materia_requisito=_M("MAT102"))
+        Prerequisito(materia=_M("MAT205"), materia_requisito=_M("MAT103"))
+
+        # INF220 (Estructura de Datos I) ← INF210 (Programación II)
+        Prerequisito(materia=_M("INF220"), materia_requisito=_M("INF210"))
+
+        # INF221 (Programación Ensamblador) ← INF211 (Arquitectura de Computadoras)
+        Prerequisito(materia=_M("INF221"), materia_requisito=_M("INF211"))
+
+        # ADM200 (Contabilidad) ← ADM100 (Administración)
+        Prerequisito(materia=_M("ADM200"), materia_requisito=_M("ADM100"))
+
+                
         
         
+         # ===== IDs manuales  =====
+        d1 = Docente.get(id=1)
+        d2 = Docente.get(id=2)
+        
+        
+        p1 = Periodo.get(id=1)
+        if not d1 or not p1:
+            rollback()
+            return jsonify({"error": "Docente id=1 o Periodo id=1 no encontrado"}), 404
+
+        # ===== Infraestructura (si no tienes aulas previas, crea estas) =====
+        mod1 = Modulo(numero="220", nombre="Edificio Principal")
+        mod2 = Modulo(numero="320", nombre="Edificio Tecnología")
+
+        a1 = Aula(numero="101", nombre="Laboratorio 1",  modulo=mod1)
+        a2 = Aula(numero="102", nombre="Aula Magna",     modulo=mod1)
+        a3 = Aula(numero="201", nombre="Sala de Conf.",  modulo=mod2)
+
+        # ===== Grupos (1 por materia) — SIN bucles =====
+        cupo = 40
+
+        # MAT101
+        g_mat101 = GrupoMateria(grupo="SA", nombre=f"Grupo SA - {materias[0].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[0], docente=d1, periodo=p1)
+        Horario(dia="Lunes",   hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_mat101, aula=a1)
+        Horario(dia="Jueves",  hora_inicio=datetime.time(10,0), hora_fin=datetime.time(12,0), grupo=g_mat101, aula=a1)
+
+        # INF119
+        g_inf119 = GrupoMateria(grupo="TV", nombre=f"Grupo TV - {materias[1].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[1], docente=d1, periodo=p1)
+        Horario(dia="Martes",  hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_inf119, aula=a2)
+        Horario(dia="Viernes", hora_inicio=datetime.time(10,0), hora_fin=datetime.time(12,0), grupo=g_inf119, aula=a2)
+
+        # INF110
+        g_inf110 = GrupoMateria(grupo="TS", nombre=f"Grupo TS - {materias[2].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[2], docente=d1, periodo=p1)
+        Horario(dia="Miércoles", hora_inicio=datetime.time(15,0), hora_fin=datetime.time(17,0), grupo=g_inf110, aula=a1)
+        Horario(dia="Viernes",   hora_inicio=datetime.time(15,0), hora_fin=datetime.time(17,0), grupo=g_inf110, aula=a1)
+
+        # FIS100
+        g_fis100 = GrupoMateria(grupo="SX", nombre=f"Grupo SX - {materias[3].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[3], docente=d1, periodo=p1)
+        Horario(dia="Lunes",   hora_inicio=datetime.time(14,0), hora_fin=datetime.time(16,0), grupo=g_fis100, aula=a2)
+        Horario(dia="Jueves",  hora_inicio=datetime.time(16,0), hora_fin=datetime.time(18,0), grupo=g_fis100, aula=a2)
+
+        # LIN100
+        g_lin100 = GrupoMateria(grupo="SA", nombre=f"Grupo SA - {materias[4].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[4], docente=d1, periodo=p1)
+        Horario(dia="Martes",  hora_inicio=datetime.time(14,0), hora_fin=datetime.time(16,0), grupo=g_lin100, aula=a3)
+        Horario(dia="Viernes", hora_inicio=datetime.time(16,0), hora_fin=datetime.time(18,0), grupo=g_lin100, aula=a3)
+
+        # MAT102
+        g_mat102 = GrupoMateria(grupo="SB", nombre=f"Grupo SB - {materias[5].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[5], docente=d1, periodo=p1)
+        Horario(dia="Lunes",     hora_inicio=datetime.time(10,0), hora_fin=datetime.time(12,0), grupo=g_mat102, aula=a1)
+        Horario(dia="Miércoles", hora_inicio=datetime.time(10,0), hora_fin=datetime.time(12,0), grupo=g_mat102, aula=a1)
+
+        # MAT103
+        g_mat103 = GrupoMateria(grupo="SB", nombre=f"Grupo SB - {materias[6].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[6], docente=d2, periodo=p1)
+        Horario(dia="Martes",  hora_inicio=datetime.time(10,0), hora_fin=datetime.time(12,0), grupo=g_mat103, aula=a2)
+        Horario(dia="Jueves",  hora_inicio=datetime.time(14,0), hora_fin=datetime.time(16,0), grupo=g_mat103, aula=a2)
+
+        # INF120
+        g_inf120 = GrupoMateria(grupo="SX", nombre=f"Grupo SX - {materias[7].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[7], docente=d2, periodo=p1)
+        Horario(dia="Miércoles", hora_inicio=datetime.time(14,0), hora_fin=datetime.time(16,0), grupo=g_inf120, aula=a1)
+        Horario(dia="Viernes",   hora_inicio=datetime.time(14,0), hora_fin=datetime.time(16,0), grupo=g_inf120, aula=a1)
+
+        # FIS102
+        g_fis102 = GrupoMateria(grupo="SC", nombre=f"Grupo SC - {materias[8].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[8], docente=d2, periodo=p1)
+        Horario(dia="Lunes",   hora_inicio=datetime.time(16,0), hora_fin=datetime.time(18,0), grupo=g_fis102, aula=a2)
+        Horario(dia="Jueves",  hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_fis102, aula=a2)
+
+        # LIN101
+        g_lin101 = GrupoMateria(grupo="SA", nombre=f"Grupo SA - {materias[9].nombre}", estado="Activo",
+                                cupo=cupo, materia=materias[9], docente=d2, periodo=p1)
+        Horario(dia="Martes",  hora_inicio=datetime.time(16,0), hora_fin=datetime.time(18,0), grupo=g_lin101, aula=a3)
+        Horario(dia="Viernes", hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_lin101, aula=a3)
+        
+              
+        # GRUPOS — SEMESTRE 3
+        # =========================
+
+        # MAT207 — Ecuaciones Diferenciales
+        g_mat207 = GrupoMateria(
+            grupo="SD",
+            nombre=f"Grupo SD - {m_mat207.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_mat207,
+            docente=d1,
+            periodo=p1
+        )
+        Horario(dia="Lunes",    hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_mat207, aula=a1)
+        Horario(dia="Jueves",   hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_mat207, aula=a1)
+
+        # INF210 — Programación II
+        g_inf210 = GrupoMateria(
+            grupo="SD",
+            nombre=f"Grupo SD - {m_inf210.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_inf210,
+            docente=d2,
+            periodo=p1
+        )
+        Horario(dia="Miércoles", hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_inf210, aula=a2)
+        Horario(dia="Viernes",   hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_inf210, aula=a2)
+
+        # INF211 — Arquitectura de Computadoras
+        g_inf211 = GrupoMateria(
+            grupo="SD",
+            nombre=f"Grupo SD - {m_inf211.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_inf211,
+            docente=d2,
+            periodo=p1
+        )
+        Horario(dia="Martes",    hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_inf211, aula=a3)
+        Horario(dia="Miércoles", hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_inf211, aula=a3)
+
+        # FIS200 — Física III
+        g_fis200 = GrupoMateria(
+            grupo="SD",
+            nombre=f"Grupo SD - {m_fis200.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_fis200,
+            docente=d1,
+            periodo=p1
+        )
+        Horario(dia="Lunes",   hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_fis200, aula=a2)
+        Horario(dia="Jueves",  hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_fis200, aula=a2)
+
+        # ADM100 — Administración
+        g_adm100 = GrupoMateria(
+            grupo="SD",
+            nombre=f"Grupo SD - {m_adm100.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_adm100,
+            docente=d1,
+            periodo=p1
+        )
+        Horario(dia="Martes",  hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_adm100, aula=a1)
+        Horario(dia="Viernes", hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_adm100, aula=a1)
+
+        # =========================
+        # GRUPOS — SEMESTRE 4
+        # =========================
+
+        # MAT202 — Probabilidad y Estadística I
+        g_mat202 = GrupoMateria(
+            grupo="SE",
+            nombre=f"Grupo SE - {m_mat202.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_mat202,
+            docente=d1,
+            periodo=p1
+        )
+        Horario(dia="Martes",    hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_mat202, aula=a1)
+        Horario(dia="Jueves",    hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_mat202, aula=a1)
+
+        # MAT205 — Métodos Numéricos
+        g_mat205 = GrupoMateria(
+            grupo="SE",
+            nombre=f"Grupo SE - {m_mat205.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_mat205,
+            docente=d2,
+            periodo=p1
+        )
+        Horario(dia="Lunes",     hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_mat205, aula=a3)
+        Horario(dia="Miércoles", hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_mat205, aula=a3)
+
+        # INF220 — Estructura de Datos I
+        g_inf220 = GrupoMateria(
+            grupo="SE",
+            nombre=f"Grupo SE - {m_inf220.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_inf220,
+            docente=d2,
+            periodo=p1
+        )
+        Horario(dia="Martes",  hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_inf220, aula=a2)
+        Horario(dia="Viernes", hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_inf220, aula=a2)
+
+        # INF221 — Programación Ensamblador
+        g_inf221 = GrupoMateria(
+            grupo="SE",
+            nombre=f"Grupo SE - {m_inf221.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_inf221,
+            docente=d1,
+            periodo=p1
+        )
+        Horario(dia="Jueves",  hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_inf221, aula=a1)
+        Horario(dia="Viernes", hora_inicio=datetime.time(12,0), hora_fin=datetime.time(14,0), grupo=g_inf221, aula=a1)
+
+        # ADM200 — Contabilidad
+        g_adm200 = GrupoMateria(
+            grupo="SE",
+            nombre=f"Grupo SE - {m_adm200.nombre}",
+            estado="Activo",
+            cupo=cupo,
+            materia=m_adm200,
+            docente=d1,
+            periodo=p1
+        )
+        Horario(dia="Martes",  hora_inicio=datetime.time(16,0), hora_fin=datetime.time(18,0), grupo=g_adm200, aula=a3)
+        Horario(dia="Viernes", hora_inicio=datetime.time(8,0),  hora_fin=datetime.time(10,0), grupo=g_adm200, aula=a3)
+                
 
         # Aquí puedes continuar con todos los prerrequisitos y materias de semestres 6 a 9 según la imagen
         commit()
@@ -1941,18 +2239,19 @@ def agregar_grupo_materia():
             periodo=periodo  # 🔑 Asociamos el periodo
         )
         commit()
-        return jsonify({
-            "msg": "GrupoMateria agregado",
-            "grupo": {
-                "id": grupo.id,
-                "grupo": grupo.grupo,
-                "nombre": grupo.nombre,
-                "estado": grupo.estado,
-                "materia": {"id": materia.id, "nombre": materia.nombre},
-                "docente": {"id": docente.id, "nombre": docente.nombre},
-                "periodo": {"id": periodo.id, "numero": periodo.numero, "descripcion": periodo.descripcion}
-            }
-        }), 201
+        return jsonify(grupo.to_full_dict()), 201
+        # return jsonify({
+        #     "msg": "GrupoMateria agregado",
+        #     "grupo": {
+        #         "id": grupo.id,
+        #         "grupo": grupo.grupo,
+        #         "nombre": grupo.nombre,
+        #         "estado": grupo.estado,
+        #         "materia": {"id": materia.id, "nombre": materia.nombre},
+        #         "docente": {"id": docente.id, "nombre": docente.nombre},
+        #         "periodo": {"id": periodo.id, "numero": periodo.numero, "descripcion": periodo.descripcion}
+        #     }
+        # }), 201
     except ObjectNotFound:
         rollback()
         return jsonify({"error": "Materia, Docente o Periodo no encontrado"}), 404
@@ -2405,7 +2704,7 @@ def agregar_nota():
         im = InscripcionMateria[data["inscripcion_materia_id"]]
         nota = Nota(
             nota=float(data["nota"]),
-            inscripcion_materia=im
+            inscripcionmateria=im
         )
         commit()
         return jsonify({
@@ -2505,16 +2804,15 @@ def obtener_notas_estudiante():
 
     Nota = dborm.db.Nota
 
-    # Filtrar solo las notas del estudiante
-    notas = [ 
+    notas = [
         {
             "id": n.id,
             "valor": n.nota,
-            "grupo": n.inscripcion_materia.grupo.grupo,
-            "materia": n.inscripcion_materia.grupo.materia.nombre,
-            "docente": n.inscripcion_materia.grupo.docente.nombre
+            "grupo": n.inscripcionmateria.grupo.grupo,
+            "materia": n.inscripcionmateria.grupo.materia.nombre,
+            "docente": n.inscripcionmateria.grupo.docente.nombre
         }
-        for n in Nota.select(lambda n: n.inscripcion_materia.inscripcion.estudiante.registro == estudiante_registro)
+        for n in Nota.select(lambda n: n.inscripcionmateria.inscripcion.estudiante.registro == estudiante_registro)
     ]
 
     if not notas:
@@ -2531,17 +2829,45 @@ def obtener_materias_estudiante():
     estudiante_registro = request.args.get("registro")
     if not estudiante_registro:
         return jsonify({"error": "Debes enviar registro del estudiante"}), 400
+
     Estudiante = dborm.db.Estudiante
+    Nota       = dborm.db.Nota
+
     try:
         estudiante = Estudiante.get(registro=estudiante_registro)
         if not estudiante:
             return jsonify({"error": "Estudiante no encontrado"}), 404
-        materias = {
-            m.grupo.materia.id: m.grupo.materia.to_dict()  #Usa el ID de la materia como clave (para evitar duplicados) Usa el diccionario de la materia como valor (to_dict())
-            for insc in estudiante.inscripciones
-            for m in insc.materias # aqui materias es = InscripcionMateria
-        }
-        return jsonify( materias ), 200
+
+        # resultado indexado por id_materia
+        resultado = {}  # { id_materia: { materia_fields..., "nota": <float|null>, "__fecha": date } }
+
+        for insc in estudiante.inscripciones:
+            for im in insc.materias:  # im = InscripcionMateria
+                mat = im.grupo.materia
+                mid = mat.id
+
+                # Obtener la última nota (si existiera) para esta InscripcionMateria
+                if im.notas:
+                    # última por id (asumiendo id incremental)
+                    ultima_nota = max(im.notas, key=lambda n: n.id).nota
+                else:
+                    ultima_nota = None  # sin nota
+
+                # Si aún no está o esta inscripción es más reciente, sobrescribe
+                if (mid not in resultado) or (insc.fecha > resultado[mid]["__fecha"]):
+                    # Armamos el dict base de la materia y sumamos la nota
+                    data_materia = mat.to_dict()
+                    data_materia["nota"] = ultima_nota  # float o None
+
+                    # Guardamos fecha para resolver empates y luego la quitamos
+                    data_materia["__fecha"] = insc.fecha
+                    resultado[mid] = data_materia
+
+        # Remover la clave interna "__fecha" antes de responder
+        for v in resultado.values():
+            v.pop("__fecha", None)
+
+        return jsonify(resultado), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

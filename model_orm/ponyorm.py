@@ -229,6 +229,7 @@ class DatabaseORM:
             telefono = Optional(str)
             correo = Optional(str)
             otros = Optional(str)
+            bloqueo = Optional(bool, default=False, sql_default='FALSE')
             inscripciones = Set("Inscripcion")
             def to_full_dict(self):
                 data = self.to_dict()

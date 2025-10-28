@@ -276,74 +276,6 @@ class TaskWorker(threading.Thread):
         return None
 
 
-
-    @db_session
-    def _procesar_inscripcion_materia2(self, dto_data: dict):
-        print("Entrando por proceso de inscripción de lista de materias.")
-        print(dto_data)
-        # 1. Obtener las entidades de la base de datos
-        Inscripcion = self.dborm.db.Inscripcion
-        Estudiante = self.dborm.db.Estudiante
-        Periodo = self.dborm.db.Periodo
-        InscripcionMateria = self.dborm.db.InscripcionMateria
-        GrupoMateria = self.dborm.db.GrupoMateria
-
-        # 2. Validaciones iniciales de los datos principales
-        estudiante = Estudiante.get(registro=dto_data.get("estudiante_registro"))
-        if not estudiante:
-            raise ValueError("Estudiante no encontrado")
-
-        periodo = Periodo.get(id=dto_data.get("periodo_id"))
-        if not periodo:
-            raise ValueError("Periodo no encontrado")
-
-        grupos_ids = dto_data.get("grupos_ids", [])
-        if not isinstance(grupos_ids, list) or not grupos_ids:
-            raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
-
-        # 3. Validar todos los grupos y sus cupos ANTES de crear cualquier registro
-        grupos_a_inscribir = []
-        for grupo_id in grupos_ids:
-            grupo = GrupoMateria.get(id=grupo_id)
-            if not grupo:
-                raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
-            if grupo.cupo is None or grupo.cupo <= 0:
-                raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
-            grupos_a_inscribir.append(grupo)
-
-        # 4. Crear la inscripción principal
-        nueva_inscripcion = Inscripcion(
-            fecha=datetime.date.today(),
-            estudiante=estudiante,
-            periodo=periodo
-        )
-
-        # 5. Crear las inscripciones a materias y descontar los cupos
-        materias_inscritas_info = []
-        for grupo in grupos_a_inscribir:
-            InscripcionMateria(inscripcion=nueva_inscripcion, grupo=grupo)
-            grupo.cupo -= 1  # Descontar el cupo
-
-            materias_inscritas_info.append({
-                "id_grupo": grupo.id,
-                "nombre_grupo": grupo.nombre,
-                "cupo_restante": grupo.cupo
-            })
-
-        # 6. Confirmar la transacción (opcional si @db_session lo maneja, pero explícito es más claro)
-        commit()
-
-        # 7. Devolver un diccionario con el resultado detallado
-        return {
-            "msg": "Inscripción completada exitosamente.",
-            "inscripcion": {
-                "id": nueva_inscripcion.id,
-                "fecha": str(nueva_inscripcion.fecha),
-                "estudiante": {"id": estudiante.id, "nombre": estudiante.nombre},
-                "periodo": {"id": periodo.id, "numero": periodo.numero}
-            },
-            "materias_inscritas": materias_inscritas_info
-        }
     
     def _validar_grupos_y_cupos(self, grupos_ids: list):
         """
@@ -354,38 +286,208 @@ class TaskWorker(threading.Thread):
         GrupoMateria = self.dborm.db.GrupoMateria
         grupos_a_inscribir = []
         
-        self.logger.info("Validando grupos y cupos...")
+        logger.info("Validando grupos y cupos...")
         
         if not isinstance(grupos_ids, list) or not grupos_ids:
-            #raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
-            raise AppError(
-                    "La lista 'grupos_ids' es requerida y no puede estar vacía",
-                    error_code="Error not found",
-                    status_code=408
-                    )
+            raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
+            # raise AppError(
+            #         "La lista 'grupos_ids' es requerida y no puede estar vacía",
+            #         error_code="Error not found",
+            #         status_code=408
+            #         )
         for grupo_id in grupos_ids:
             # ESTA LÍNEA (GrupoMateria.get) ES LA QUE "MOCKEAREMOS" EN LA PRUEBA
             grupo = GrupoMateria.get(id=grupo_id)
             
             if not grupo:
-                #raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
-                raise AppError(
-                f"El grupo con ID {grupo_id} no fue encontrado",
-                error_code="Error not found",
-                status_code=404
-                )
+                raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+                # raise AppError(
+                # f"El grupo con ID {grupo_id} no fue encontrado",
+                # error_code="Error not found",
+                # status_code=404
+                # )
             if grupo.cupo is None or grupo.cupo <= 0:
-                #raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
-                raise AppError(
-                f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})",
-                error_code="Error not cupos disponibles",
-                status_code=440
-                )
+                raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
+                # raise AppError(
+                # f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})",
+                # error_code="Error not cupos disponibles",
+                # status_code=440
+                # )
             
             grupos_a_inscribir.append(grupo)
             
-        self.logger.info("Todos los grupos y cupos han sido validados correctamente.")
+        logger.info("Todos los grupos y cupos han sido validados correctamente.")
         return grupos_a_inscribir
+    
+    def _validar_choque_horarios(self, grupos_ids: list) -> bool:
+        """
+        Valida choques de horario EXCLUSIVAMENTE entre los grupos indicados.
+        - Lanza AppError con error_code='CHOQUE_DE_HORARIO' si hay conflicto.
+        - Retorna True si no hay choques.
+        """
+        GrupoMateria = self.dborm.db.GrupoMateria
+
+        logger.info("Validando choques de horarios (solo entre grupos seleccionados)...")
+
+        if not isinstance(grupos_ids, list) or not grupos_ids:
+            # raise AppError(
+            #     "La lista 'grupos_ids' es requerida y no puede estar vacía",
+            #     error_code="Error not found",
+            #     status_code=408
+            # )
+            raise ValueError(f"La lista 'grupos_ids' es requerida y no puede estar vacía")
+
+        # Cargar grupos existentes
+        grupos = []
+        for gid in grupos_ids:
+            g = GrupoMateria.get(id=gid)
+            if not g:
+                # raise AppError(
+                #     f"El grupo con ID {gid} no fue encontrado",
+                #     error_code="Error not found",
+                #     status_code=404
+                # )
+                raise ValueError(f"El grupo con ID {gid} no fue encontrado")
+            grupos.append(g)
+
+        # Helpers
+        def _norm_dia(d: str) -> str:
+            return (d or "").strip().casefold()
+
+        def _se_solapan(hini1, hfin1, hini2, hfin2) -> bool:
+            # contiguos NO chocan
+            return (hini1 < hfin2) and (hfin1 > hini2)
+
+        # Construir slots
+        slots = []
+        for g in grupos:
+            for h in g.horarios:
+                slots.append((
+                    g,
+                    _norm_dia(h.dia),
+                    h.hora_inicio,
+                    h.hora_fin,
+                    h.dia,  # día original para mostrar
+                    f"{g.nombre or f'Grupo {g.grupo}'} — {g.materia.nombre}",
+                    h.hora_inicio.strftime('%H:%M'),
+                    h.hora_fin.strftime('%H:%M'),
+                ))
+
+        # Agrupar por día
+        por_dia = {}
+        for g, d_norm, ini, fin, d_show, label, sinitxt, sfinxt in slots:
+            por_dia.setdefault(d_norm, []).append((g, ini, fin, d_show, label, sinitxt, sfinxt))
+
+        conflictos_legibles = []  # líneas para mostrar
+        # (Si quisieras, aquí podrías construir también una lista de dicts estructurados)
+
+        # Comparar pares en el mismo día
+        for d_norm, items in por_dia.items():
+            n = len(items)
+            for i in range(n):
+                g_i, ini_i, fin_i, d_show_i, lbl_i, s_ini_i, s_fin_i = items[i]
+                for j in range(i + 1, n):
+                    g_j, ini_j, fin_j, d_show_j, lbl_j, s_ini_j, s_fin_j = items[j]
+
+                    # Evitar comparar el mismo grupo consigo mismo
+                    if g_i.id == g_j.id:
+                        continue
+
+                    if _se_solapan(ini_i, fin_i, ini_j, fin_j):
+                        # Mismo día visual (pueden venir iguales)
+                        dia_mostrar = d_show_i or d_show_j
+                        conflictos_legibles.append(
+                            f"- {dia_mostrar}: {lbl_i} [{s_ini_i}–{s_fin_i}]  ↔  {lbl_j} [{s_ini_j}–{s_fin_j}]"
+                        )
+
+        if conflictos_legibles:
+            detalle = "\n".join(conflictos_legibles)
+            # raise AppError(
+            #     "[CHOQUE_DE_HORARIO] Se detectaron choques de horario entre los grupos seleccionados.\n" + detalle,
+            #     error_code="CHOQUE_DE_HORARIO",
+            #     status_code=441
+            #)
+            raise ValueError(f"[CHOQUE_DE_HORARIO] Se detectaron choques de horario entre los grupos seleccionados.\n" + detalle)
+
+        logger.info("No se encontraron choques de horario entre los grupos seleccionados.")
+        return True
+    
+    def _validar_prerequisito_vencido(self, estudiante, grupos_ids: list):
+        """
+        Verifica que el estudiante haya vencido (aprobado) todos los prerequisitos
+        de las materias que intenta inscribir.
+        - Recibe los IDs de los grupos, no los objetos.
+        - Lanza ValueError si falta aprobar algún prerequisito.
+        """
+        GrupoMateria = self.dborm.db.GrupoMateria
+        Prerequisito = self.dborm.db.Prerequisito
+        InscripcionMateria = self.dborm.db.InscripcionMateria
+        Nota = self.dborm.db.Nota
+
+        logger.info("Validando prerequisitos vencidos...")
+
+        if not isinstance(grupos_ids, list) or not grupos_ids:
+            raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
+
+        for grupo_id in grupos_ids:
+            grupo = GrupoMateria.get(id=grupo_id)
+            if not grupo:
+                raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+
+            materia_actual = grupo.materia
+            prereqs = Prerequisito.select(lambda p: p.materia == materia_actual)[:]
+
+            if not prereqs:
+                logger.debug(f"La materia '{materia_actual.nombre}' no tiene prerequisitos.")
+                continue
+
+            for prereq in prereqs:
+                materia_requerida = prereq.materia_requisito
+                logger.debug(f"Validando prerequisito '{materia_requerida.nombre}' para '{materia_actual.nombre}'")
+
+                # Buscar si el estudiante ya cursó esa materia
+                inscripciones_previas = InscripcionMateria.select(
+                    lambda im: im.inscripcion.estudiante == estudiante and im.grupo.materia == materia_requerida
+                )[:]
+
+                if not inscripciones_previas:
+                    raise ValueError(
+                        f"El estudiante no tiene registrada la materia prerequisito '{materia_requerida.nombre}' "
+                        f"requerida para inscribir '{materia_actual.nombre}'."
+                    )
+
+                # Validar si alguna inscripción de esa materia tiene nota >= 51
+                aprobo = any(
+                    (nota := Nota.get(inscripcionmateria=im)) and nota.nota >= 51
+                    for im in inscripciones_previas
+                )
+
+                if not aprobo:
+                    raise ValueError(
+                        f"No se puede inscribir '{materia_actual.nombre}' porque no se ha vencido "
+                        f"el prerequisito '{materia_requerida.nombre}' (nota < 51)."
+                    )
+
+        logger.info("Todos los prerequisitos han sido validados correctamente.")
+        return True
+    
+    def _validar_bloqueo_estudiante(self, estudiante):
+        """
+        Verifica si el estudiante está bloqueado.
+        Lanza ValueError si el campo 'bloqueo' está en True.
+        """
+        if estudiante is None:
+            raise ValueError("El estudiante proporcionado no existe o no fue encontrado.")
+
+        if getattr(estudiante, "bloqueo", False):
+            raise ValueError(
+                f"El estudiante '{estudiante.nombre}' (CI: {estudiante.ci}) "
+                f"tiene un bloqueo activo y no puede realizar inscripciones."
+            )
+
+        logger.info(f"Validación de bloqueo completada: estudiante '{estudiante.nombre}' no está bloqueado.")
+        return True
+    
     
     @db_session
     def _procesar_inscripcion_materia3(self, dto_data: dict):
@@ -432,7 +534,13 @@ class TaskWorker(threading.Thread):
 
             # 3. Validar grupos y cupos (LLAMADA A LA NUEVA FUNCIÓN)
             
-            grupos_a_inscribir = self._validar_grupos_y_cupos(grupos_ids)
+            grupos_a_inscribir = self._validar_grupos_y_cupos(grupos_ids=grupos_ids)
+            
+            self._validar_choque_horarios(grupos_ids=grupos_ids)
+            
+            self._validar_prerequisito_vencido(estudiante=estudiante,grupos_ids=grupos_ids )
+
+            self._validar_bloqueo_estudiante(estudiante=estudiante)
 
 
             # 4. Crear la inscripción principal
