@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock  # 'mocker' de pytest-mock usa esto por debajo
-
+from app_except import AppError
 #comando para ver con detalles   python -m pytest -v  python -m pytest -v -s
 
 
@@ -126,7 +126,10 @@ def test_validar_cupos_SIN_CUPO(servicio_inscripcion, mocker):
     # 2. ACTUAR y 3. VERIFICAR (en una sola línea)
     # Verificamos que la función lanza un 'ValueError'
     # y que el mensaje de error contiene "No hay cupos disponibles"
-    with pytest.raises(ValueError, match="No hay cupos disponibles"):
+    # with pytest.raises(ValueError, match="No hay cupos disponibles"):
+    #     servicio._validar_grupos_y_cupos(grupos_ids=[102])
+        
+    with pytest.raises(AppError, match="No hay cupos disponibles"):
         servicio._validar_grupos_y_cupos(grupos_ids=[102])
         
     # Verificar que el mock fue llamado
@@ -145,7 +148,9 @@ def test_validar_cupos_GRUPO_NO_ENCONTRADO(servicio_inscripcion, mocker):
     
     # 2. ACTUAR y 3. VERIFICAR
     # Verificamos que lanza el error con el mensaje correcto
-    with pytest.raises(ValueError, match="grupo con ID 999 no fue encontrado"):
+    # with pytest.raises(ValueError, match="grupo con ID 999 no fue encontrado"):
+    #     servicio._validar_grupos_y_cupos(grupos_ids=[999])
+    with pytest.raises(AppError, match="grupo con ID 999 no fue encontrado"):
         servicio._validar_grupos_y_cupos(grupos_ids=[999])
         
     mock_dborm.db.GrupoMateria.get.assert_called_with(id=999)
@@ -159,6 +164,9 @@ def test_validar_cupos_LISTA_VACIA(servicio_inscripcion):
     servicio, _ = servicio_inscripcion
     
     # 2. ACTUAR y 3. VERIFICAR
-    with pytest.raises(ValueError, match="lista 'grupos_ids' es requerida"):
+    # with pytest.raises(ValueError, match="lista 'grupos_ids' es requerida"):
+    #     servicio._validar_grupos_y_cupos(grupos_ids=[])
+        
+    with pytest.raises(AppError, match="lista 'grupos_ids' es requerida"):
         servicio._validar_grupos_y_cupos(grupos_ids=[])
 

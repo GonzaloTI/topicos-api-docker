@@ -6,6 +6,7 @@ import threading
 from typing import Optional, Dict, Any, Callable
 
 from pony.orm import db_session, commit, rollback
+from app_except import AppError
 from tarea import Tarea, Metodo
 from cola2 import Cola2
 import logging
@@ -356,16 +357,30 @@ class TaskWorker(threading.Thread):
         self.logger.info("Validando grupos y cupos...")
         
         if not isinstance(grupos_ids, list) or not grupos_ids:
-            raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
-        
+            #raise ValueError("La lista 'grupos_ids' es requerida y no puede estar vacía")
+            raise AppError(
+                    "La lista 'grupos_ids' es requerida y no puede estar vacía",
+                    error_code="Error not found",
+                    status_code=408
+                    )
         for grupo_id in grupos_ids:
             # ESTA LÍNEA (GrupoMateria.get) ES LA QUE "MOCKEAREMOS" EN LA PRUEBA
             grupo = GrupoMateria.get(id=grupo_id)
             
             if not grupo:
-                raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+                #raise ValueError(f"El grupo con ID {grupo_id} no fue encontrado")
+                raise AppError(
+                f"El grupo con ID {grupo_id} no fue encontrado",
+                error_code="Error not found",
+                status_code=404
+                )
             if grupo.cupo is None or grupo.cupo <= 0:
-                raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
+                #raise ValueError(f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})")
+                raise AppError(
+                f"No hay cupos disponibles en el grupo '{grupo.nombre}' (ID: {grupo_id})",
+                error_code="Error not cupos disponibles",
+                status_code=440
+                )
             
             grupos_a_inscribir.append(grupo)
             
