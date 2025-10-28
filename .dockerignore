@@ -1,6 +1,6 @@
 
-Dockerfile
-.dockerignore
+#Dockerfile
+#.dockerignore
 
 
 pycache/
