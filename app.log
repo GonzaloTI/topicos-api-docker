@@ -612,3 +612,9 @@ TypeError: TaskWorker._validar_prerequisito_vencido() got an unexpected keyword 
 2025-10-28 18:15:51,453 [INFO] app_logger.manager - Iniciados 1 workers
 2025-10-28 18:15:51,491 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
 2025-10-28 18:15:51,588 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-30 13:31:08,983 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-30 13:31:08,994 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-30 13:31:08,994 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-30 13:31:09,001 [INFO] app_logger.manager - Iniciados 1 workers
+2025-10-30 13:31:30,762 [INFO] app_logger.manager - Creados 1 workers con timeout 1s
+2025-10-30 13:31:30,767 [INFO] app_logger.manager - Iniciados 1 workers
