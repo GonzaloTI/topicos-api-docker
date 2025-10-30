@@ -3,10 +3,9 @@
 #.dockerignore
 
 
-pycache/
+__pycache__/
 *.pyc
 *.pyo
-
 *.log
 app.log
 
